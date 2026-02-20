@@ -1,7 +1,7 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 
-#include "CPP_AI_Child_01.h"
+#include "NeedOfSpeed/AI/Public/CPP_AI_Child_01.h"
 
 #include "ChaosWheeledVehicleMovementComponent.h"
 
