@@ -2,7 +2,7 @@
 
 
 #include "ExplodeLaunchComponent.h"
-#include "Gameplay/Destruction/ExplodeLaunchComponent.h"
+#include "NeedOfSpeed/Gameplay/Destruction/ExplodeLaunchComponent.h"
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraSystem.h"
 #include "NiagaraComponent.h"
@@ -34,5 +34,9 @@ void UExplodeLaunchComponent::TickComponent(float DeltaTime, ELevelTick TickType
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
 	// ...
+}
+
+void UExplodeLaunchComponent::TriggerExplode()
+{
 }
 

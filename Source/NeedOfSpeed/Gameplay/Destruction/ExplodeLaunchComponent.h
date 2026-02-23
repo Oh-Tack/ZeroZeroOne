@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "NiagaraSystem.h"
 #include "Components/ActorComponent.h"
 #include "ExplodeLaunchComponent.generated.h"
 

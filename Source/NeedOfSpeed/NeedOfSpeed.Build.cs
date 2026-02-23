@@ -17,6 +17,9 @@ public class NeedOfSpeed : ModuleRules
 			"EnhancedInput", 
 			"ChaosVehicles",
 			"Niagara",
+			"GeometryCollectionEngine",
+			"ChaosSolverEngine",
+			"FieldSystemEngine"
 		});
 
 		PrivateDependencyModuleNames.AddRange(new string[] {  });
