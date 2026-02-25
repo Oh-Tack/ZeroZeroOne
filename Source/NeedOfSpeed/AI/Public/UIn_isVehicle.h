@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Components/BoxComponent.h"
 #include "UObject/Interface.h"
 #include "UIn_isVehicle.generated.h"
 
@@ -33,7 +34,14 @@ public:
 
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category="Vehicle")
 	FVector GetFrontOfCar();
-	
+
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category="Vehicle")
 	float GetCurrentSpeed();
+
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category="Vehicle")
+	void GetCollisionBoxes(
+		UBoxComponent*& FrontBox,
+		UBoxComponent*& LeftBox,
+		UBoxComponent*& RightBox
+	);
 };

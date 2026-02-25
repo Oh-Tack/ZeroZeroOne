@@ -27,7 +27,7 @@ void ACPP_Road::Tick(float DeltaTime)
 	Super::Tick(DeltaTime);
 }
 
-void ACPP_Road::GetClosestLocationToPath_Implementation(FVector AILocation, float GetComponentLocation,
+void ACPP_Road::GetClosestLocationToPath_Implementation(FVector AILocation, float GetComponentLocation, int SideOfRoad,
                                                         FVector& LocationToSteerTo)
 {
 	if (!Spline)
@@ -36,16 +36,29 @@ void ACPP_Road::GetClosestLocationToPath_Implementation(FVector AILocation, floa
 	}
 
 	float MoveToSpline = Spline->GetDistanceAlongSplineAtLocation(AILocation, ESplineCoordinateSpace::World);
+
+	FVector Loc, RVec;
 	if (MoveToSpline + GetComponentLocation > Spline->GetSplineLength())
 	{
-		LocationToSteerTo = Spline->GetLocationAtDistanceAlongSpline(
+		Loc = Spline->GetLocationAtDistanceAlongSpline(
+			(MoveToSpline + GetComponentLocation) - Spline->GetSplineLength(),
+			ESplineCoordinateSpace::World);
+
+		RVec = Spline->GetRightVectorAtDistanceAlongSpline(
 			(MoveToSpline + GetComponentLocation) - Spline->GetSplineLength(),
 			ESplineCoordinateSpace::World);
 	}
 	else
 	{
-		LocationToSteerTo = Spline->GetLocationAtDistanceAlongSpline(
+		Loc = Spline->GetLocationAtDistanceAlongSpline(
+			MoveToSpline + GetComponentLocation,
+			ESplineCoordinateSpace::World);
+
+		RVec = Spline->GetRightVectorAtDistanceAlongSpline(
 			MoveToSpline + GetComponentLocation,
 			ESplineCoordinateSpace::World);
 	}
+
+	RVec = SideOfRoad ? RVec * 500 : RVec * -500;
+	LocationToSteerTo = Loc + RVec;
 }

@@ -9,6 +9,7 @@
 class ACPP_Road;
 class USplineComponent;
 class USceneComponent;
+class UBoxComponent;
 
 UCLASS()
 class NEEDOFSPEED_API ACPP_AI_McLaren : public AWheeledVehiclePawn, public IUIn_isVehicle
@@ -29,6 +30,7 @@ public:
 	virtual void SetThrottle_Implementation(float Throttle) override;
 	virtual void SetSteering_Implementation(float Steering) override;
 	virtual void SetBrake_Implementation(float Brake) override;
+	virtual void GetCollisionBoxes_Implementation(UBoxComponent*& FrontBox, UBoxComponent*& LeftBox, UBoxComponent*& RightBox) override;
 	virtual FVector GetFrontOfCar_Implementation() override;
 	virtual float GetCurrentSpeed_Implementation() override;
 
@@ -38,21 +40,30 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Components")
 	USplineComponent* RoadSpline;
 
-	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = "Components")
-	USceneComponent* Sensor_L;
-
-	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = "Components")
-	USceneComponent* Sensor_R;
+	// UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = "Components")
+	// USceneComponent* Sensor_L;
+	//
+	// UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = "Components")
+	// USceneComponent* Sensor_R;
 
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = "Components")
 	USceneComponent* Sensor_F;
+	
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = "Components")
+	UBoxComponent* FrontViewBox;
+	
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = "Components")
+	UBoxComponent* LeftSideBox;
+	
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = "Components")
+	UBoxComponent* RightSideBox;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Vehicle")
 	float Max_Speed = 150.0f;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Vehicle")
-	float Min_Speed = 50.0f;
+	float Min_Speed = 30.0f;
 	
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Vehicle")
-	float Angle = 40.0f;
+	float Angle = 15.0f;
 };

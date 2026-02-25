@@ -12,10 +12,10 @@ UCPP_McLaren_Front::UCPP_McLaren_Front()
 	WheelMass = 30.0f;
 	
 	
-	MaxSteerAngle = 30.0f;
+	MaxSteerAngle = 50.0f;
 	
 	bAffectedByBrake = true;
-	bAffectedByHandbrake = true;
-	bAffectedByEngine = true;
+	bAffectedByHandbrake = false;
+	bAffectedByEngine = false;
 	bAffectedBySteering = true;
 }

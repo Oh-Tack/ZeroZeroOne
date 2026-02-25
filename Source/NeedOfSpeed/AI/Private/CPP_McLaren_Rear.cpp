@@ -11,7 +11,7 @@ UCPP_McLaren_Rear::UCPP_McLaren_Rear()
 	WheelWidth = 38.0f;
 	WheelMass = 38.0f;
 	
-	FrictionForceMultiplier = 3.5f;  // 타이어 grip 증가
+	FrictionForceMultiplier = 2.5f;  // 타이어 grip 증가
 	MaxSteerAngle = 0.0f;
 	
 	bAffectedByBrake = true;
