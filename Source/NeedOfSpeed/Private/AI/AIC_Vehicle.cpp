@@ -1,10 +1,10 @@
-#include "NeedOfSpeed/AI/Public/AIC_Vehicle.h"
-#include "NeedOfSpeed/AI/Public/CPP_Road.h"
-#include "NeedOfSpeed/AI/Public/UIn_isVehicle.h"
+#include "NeedOfSpeed/Public/AI/AIC_Vehicle.h"
+#include "NeedOfSpeed/Public/AI/CPP_Road.h"
+#include "NeedOfSpeed/Public/AI/UIn_isVehicle.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "Components/BoxComponent.h"
 #include "Kismet/GameplayStatics.h"
-#include "NeedOfSpeed/AI/Public/CPP_AI_McLaren.h"
+#include "NeedOfSpeed/Public/AI/CPP_AI_McLaren.h"
 
 AAIC_Vehicle::AAIC_Vehicle()
 {

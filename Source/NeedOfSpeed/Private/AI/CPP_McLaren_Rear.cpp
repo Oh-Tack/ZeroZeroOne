@@ -1,7 +1,7 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 
-#include "NeedOfSpeed/AI/Public/CPP_McLaren_Rear.h"
+#include "NeedOfSpeed/Public/AI/CPP_McLaren_Rear.h"
 
 UCPP_McLaren_Rear::UCPP_McLaren_Rear()
 {

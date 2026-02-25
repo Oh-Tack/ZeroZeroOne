@@ -31,8 +31,11 @@
 		},
 		{
 			"Name": "FieldSystemPlugin",
+			"Enabled": true
+		},
+		{
 			"Name": "LearningAgents",
 			"Enabled": true
-		}
+		},
 	]
 }

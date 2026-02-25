@@ -1,8 +1,8 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 
-#include "NeedOfSpeed/AI/Public/AIC_LearningVehicle.h"
-#include "NeedOfSpeed/AI/Public/UIn_isVehicle.h"
+#include "NeedOfSpeed/Public/AI/AIC_LearningVehicle.h"
+#include "NeedOfSpeed/Public/AI/UIn_isVehicle.h"
 
 AAIC_LearningVehicle::AAIC_LearningVehicle()
 {

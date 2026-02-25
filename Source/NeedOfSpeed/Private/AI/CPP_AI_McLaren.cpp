@@ -1,8 +1,8 @@
-#include "NeedOfSpeed/AI/Public/CPP_AI_McLaren.h"
+#include "NeedOfSpeed/Public/AI/CPP_AI_McLaren.h"
 
-#include "NeedOfSpeed/AI/Public/CPP_McLaren_Front.h"
-#include "NeedOfSpeed/AI/Public/CPP_McLaren_Rear.h"
-#include "NeedOfSpeed/AI/Public/CPP_Road.h"
+#include "NeedOfSpeed/Public/AI/CPP_McLaren_Front.h"
+#include "NeedOfSpeed/Public/AI/CPP_McLaren_Rear.h"
+#include "NeedOfSpeed/Public/AI/CPP_Road.h"
 #include "Components/SplineComponent.h"
 #include "Components/SceneComponent.h"
 #include "Components/SkeletalMeshComponent.h"
