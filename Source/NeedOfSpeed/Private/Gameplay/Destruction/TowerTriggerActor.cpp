@@ -49,7 +49,3 @@ void ATowerTriggerActor::OnOverlapBegin(UPrimitiveComponent* OverlappedComp, AAc
 	UE_LOG(LogTemp, Log, TEXT("[TowerTrigger] 차량 진입 감지 → %s 붕괴 시작"),
 		   *TargetTower->GetName());
 }
-
-
-
-

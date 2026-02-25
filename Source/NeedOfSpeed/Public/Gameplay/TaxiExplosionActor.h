@@ -38,24 +38,14 @@ public:
 	FVector ParticleSpawnOffset = FVector(0.0f, 0.0f, 0.0f);
 	
 public:
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Explosion|Tuning|RadialImpulse")
-	FVector ExplosionOriginOffset = FVector(0.f, 300.f, -200.f);
-	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Explosion|Tuning|RadialImpulse")
-	float ExplosionRadius = 800.f;
-	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Explosion|Tuning|RadialImpulse")
-	float RadialImpulseStrength = 800000.f;
-	
-public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Explosion|Tuning|LinearImpulse")
-	FVector LaunchDirection = FVector(0.f, -1.f, 1.5f);
+	FVector LaunchDirection = FVector(1.f, 0.f, 1.f);
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Explosion|Tuning|LinearImpulse")
-	float LinearImpulseStrength = 600000.f;
+	float LinearImpulseStrength = 700.f;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Explosion|Tuning|AngularImpulse")
-	FVector AngularImpulseDegrees = FVector(0.f, 0.f, 36000.f);
+	FVector AngularImpulseDegrees = FVector(-400.f, 0.f, 0.f);
 	
 	UFUNCTION(BlueprintCallable, Category = "Explosion")
 	void TriggerExplosion();
