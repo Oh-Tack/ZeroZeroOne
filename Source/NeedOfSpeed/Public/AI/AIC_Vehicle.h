@@ -56,6 +56,9 @@ public:
 
 	UPROPERTY(BlueprintReadOnly, Category = "AI")
 	int SideOfRoad;
+	
+	UPROPERTY(BlueprintReadOnly, Category = "AI")
+	int OriginalSideOfRoad;
 
 	// -------------------------
 	// Overtake

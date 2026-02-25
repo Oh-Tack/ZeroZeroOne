@@ -43,6 +43,12 @@ void AAIC_Vehicle::Tick(float DeltaTime)
 
 	IUIn_isVehicle::Execute_SetThrottle(ControllerVehicle, Throttle);
 	IUIn_isVehicle::Execute_SetBrake(ControllerVehicle, Brake);
+
+	// 순위 정렬
+	AllVehicles.Sort([](const AActor& A, const AActor& B)
+	{
+		return A.GetActorLocation().X > B.GetActorLocation().X;
+	});
 }
 
 // -------------------------
@@ -89,18 +95,20 @@ float AAIC_Vehicle::CalculateTopSpeed()
 }
 
 // -------------------------
-// Overtake Logic
+// Overtake + Lane Return Logic
 // -------------------------
 
 void AAIC_Vehicle::CheckForOvertakes()
 {
 	if (!ControllerVehicle) return;
 
+	// 콜리전 박스 가져오기
 	IUIn_isVehicle::Execute_GetCollisionBoxes(ControllerVehicle, FrontBox, LeftBox, RightBox);
 	if (!FrontBox || !LeftBox || !RightBox) return;
 
 	bOverrideTopSpeed = false;
 
+	// 앞차 / 좌우 차량 감지
 	TArray<AActor*> FrontActors, LeftActors, RightActors;
 	FrontBox->GetOverlappingActors(FrontActors);
 	LeftBox->GetOverlappingActors(LeftActors);
@@ -110,51 +118,56 @@ void AAIC_Vehicle::CheckForOvertakes()
 	VehicleInFrontActor = FirstActor;
 	bool bVehicleInFront = FirstActor != nullptr;
 
-	HandleLaneChange(bVehicleInFront, LeftActors, RightActors);
-	float TargetTopSpeed = HandleTargetSpeed(bVehicleInFront, FirstActor);
+	float CurrTime = GetWorld()->GetTimeSeconds();
 
-	// Throttle & Brake
-	float Throttle, Brake;
-	CalculateThrottleBrake(TargetTopSpeed, Throttle, Brake);
-
-	IUIn_isVehicle::Execute_SetThrottle(ControllerVehicle, Throttle);
-	IUIn_isVehicle::Execute_SetBrake(ControllerVehicle, Brake);
-}
-
-// -------------------------
-// Lane Change
-// -------------------------
-
-void AAIC_Vehicle::HandleLaneChange(bool bVehicleInFront, const TArray<AActor*>& LeftActors,
-                                    const TArray<AActor*>& RightActors)
-{
-	bool bOppositeLaneClear = (SideOfRoad == 1) ? (LeftActors.Num() == 0) : (RightActors.Num() == 0);
-
-	if (bVehicleInFront && bOppositeLaneClear && !bIsOvertaking)
+	// -------------------------
+	// 추월 시작
+	// -------------------------
+	if (!bIsOvertaking && bVehicleInFront)
 	{
-		SideOfRoad = (SideOfRoad == 1) ? 0 : 1;
-		bIsOvertaking = true;
-		OvertakeStartTime = GetWorld()->GetTimeSeconds();
+		bool bOppositeLaneClear = (SideOfRoad == 1) ? (LeftActors.Num() == 0) : (RightActors.Num() == 0);
+		if (bOppositeLaneClear)
+		{
+			OriginalSideOfRoad = SideOfRoad;              // 원래 차선 기억
+			SideOfRoad = (SideOfRoad == 1) ? 0 : 1;      // 추월을 위해 차선 변경
+			bIsOvertaking = true;
+			OvertakeStartTime = CurrTime;
 
-		UE_LOG(LogTemp, Warning, TEXT("[%s] OVERTAKING START"), *ControllerVehicle->GetName());
+			UE_LOG(LogTemp, Warning, TEXT("[%s] OVERTAKING START"), *ControllerVehicle->GetName());
+		}
 	}
 
-	// 추월 상태 유지
-	if (bIsOvertaking && GetWorld()->GetTimeSeconds() - OvertakeStartTime > OvertakeDuration)
+	// -------------------------
+	// 추월 유지 및 복귀
+	// -------------------------
+	if (bIsOvertaking)
 	{
-		bIsOvertaking = false;
-		UE_LOG(LogTemp, Warning, TEXT("[%s] OVERTAKING END"), *ControllerVehicle->GetName());
+		if (CurrTime - OvertakeStartTime > OvertakeDuration)
+		{
+			// 원래 차선 복귀 시도
+			TArray<AActor*> ReturnLaneActors;
+			if (OriginalSideOfRoad == 1) LeftBox->GetOverlappingActors(ReturnLaneActors);
+			else RightBox->GetOverlappingActors(ReturnLaneActors);
+
+			if (ReturnLaneActors.Num() == 0)
+			{
+				SideOfRoad = OriginalSideOfRoad; // 복귀
+				bIsOvertaking = false;
+
+				UE_LOG(LogTemp, Warning, TEXT("[%s] RETURN TO ORIGINAL LANE"), *ControllerVehicle->GetName());
+			}
+			else
+			{
+				// 복귀 불가 → 잠시 기다림
+				OvertakeStartTime = CurrTime - OvertakeDuration + 0.1f;
+			}
+		}
 	}
-}
 
-// -------------------------
-// Target Speed
-// -------------------------
-
-float AAIC_Vehicle::HandleTargetSpeed(bool bVehicleInFront, AActor* FirstActor)
-{
+	// -------------------------
+	// 목표 속도 계산
+	// -------------------------
 	float TargetTopSpeed = CalculateTopSpeed();
-
 	if (bVehicleInFront && FirstActor)
 	{
 		float FrontDistance = FVector::Distance(ControllerVehicle->GetActorLocation(), FirstActor->GetActorLocation());
@@ -162,9 +175,13 @@ float AAIC_Vehicle::HandleTargetSpeed(bool bVehicleInFront, AActor* FirstActor)
 
 		if (bIsOvertaking)
 		{
-			TargetTopSpeed = FMath::Max(TargetTopSpeed, FrontSpeed + 50.0f);
+			TargetTopSpeed = FMath::Max(TargetTopSpeed, FrontSpeed + 100.0f);
 		}
-		else if (FrontDistance < 500.f)
+		else if (FrontDistance < 1000.f)
+		{
+			TargetTopSpeed = FMath::Min(TargetTopSpeed, FrontSpeed + 50.0f);
+		} 
+		else if (FrontDistance < 300.0f)
 		{
 			TargetTopSpeed = FMath::Min(TargetTopSpeed, FrontSpeed);
 		}
@@ -176,7 +193,14 @@ float AAIC_Vehicle::HandleTargetSpeed(bool bVehicleInFront, AActor* FirstActor)
 	if (MyRank == TotalCars) TargetTopSpeed *= 1.2f;
 	else if (MyRank == TotalCars - 1) TargetTopSpeed *= 1.1f;
 
-	return TargetTopSpeed;
+	// -------------------------
+	// Throttle & Brake 적용
+	// -------------------------
+	float Throttle, Brake;
+	CalculateThrottleBrake(TargetTopSpeed, Throttle, Brake);
+
+	IUIn_isVehicle::Execute_SetThrottle(ControllerVehicle, Throttle);
+	IUIn_isVehicle::Execute_SetBrake(ControllerVehicle, Brake);
 }
 
 // -------------------------
