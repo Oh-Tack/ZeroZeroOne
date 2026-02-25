@@ -27,14 +27,17 @@ public:
 	virtual void Tick(float DeltaTime) override;
 	
 public:
-	UPROPERTY(VisibleAnywhere)
-	UBoxComponent* TriggerBox;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	TObjectPtr<UBoxComponent> TriggerBox;
 	
-	UPROPERTY(EditAnywhere, Category = "PowerPlay")
-	ATowerDestructionActor* TargetTower;
-	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Trigger")
+	TObjectPtr<ATowerDestructionActor> TargetTower;
+
+private:
+	bool bTriggered = false;
+
 	UFUNCTION()
-	void OnOverlapBegin(UPrimitiveComponent* OverlappedComp, AActor* OtherActor, 
-						UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, 
+	void OnOverlapBegin(UPrimitiveComponent* OverlappedComp, AActor* OtherActor,
+						UPrimitiveComponent* OtherComp, int32 OtherBodyIndex,
 						bool bFromSweep, const FHitResult& SweepResult);
 };
