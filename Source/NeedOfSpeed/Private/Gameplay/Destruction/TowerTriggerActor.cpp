@@ -13,7 +13,8 @@ ATowerTriggerActor::ATowerTriggerActor()
 	
 	TriggerBox = CreateDefaultSubobject<UBoxComponent>(TEXT("TriggerBox"));
 	RootComponent = TriggerBox;
-
+	TriggerBox->SetBoxExtent(FVector(1000, 1000, 500));
+	
 	// 이벤트 바인딩
 	TriggerBox->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 	TriggerBox->SetCollisionResponseToAllChannels(ECR_Overlap);
