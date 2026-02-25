@@ -2,28 +2,19 @@
 
 
 #include "NeedOfSpeed/Gameplay/Destruction/TowerDestructionActor.h"
-
-#include "Field/FieldSystemObjects.h"
 #include "GeometryCollection/GeometryCollectionComponent.h"
 #include "TimerManager.h"
 
 // Sets default values
 ATowerDestructionActor::ATowerDestructionActor()
 {
- 	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
-	PrimaryActorTick.bCanEverTick = true;
-
-	GCComp = CreateDefaultSubobject<UGeometryCollectionComponent>(TEXT("GCComp"));
+	PrimaryActorTick.bCanEverTick = false;
+	
+	GCComp = CreateDefaultSubobject<UGeometryCollectionComponent>(TEXT("TowerMesh"));
 	SetRootComponent(GCComp);
 	
-	GCComp->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
-	GCComp->SetSimulatePhysics(true);
-	
-	GCComp->SetNotifyRigidBodyCollision(true);
-	
-	GCComp->SetCollisionProfileName(UCollisionProfile::PhysicsActor_ProfileName);
-	
-	
+	// 게임 시작 시 정지 상태 유지 — StartPowerPlay() 호출 전까지 움직이지 않음
+	GCComp->SetSimulatePhysics(false);
 }
 
 // Called when the game starts or when spawned
@@ -31,52 +22,34 @@ void ATowerDestructionActor::BeginPlay()
 {
 	Super::BeginPlay();
 	
-	// 충돌 이벤트 바인딩
-	GCComp->OnChaosPhysicsCollision.AddDynamic(this, &ATowerDestructionActor::onChaosHit);
-	
-	FTimerHandle TH;
-	GetWorldTimerManager().SetTimer(TH, [this]()
-	{
-		const FVector Axis = FVector::ForwardVector;
-		GCComp->AddAngularImpulseInDegrees(Axis * InitialImpulse, NAME_None, true);
-	}, 0.15f, false);
+	GCComp->SetSimulatePhysics(false);
+	GCComp->SetEnableGravity(false);
 }
 
 // Called every frame
 void ATowerDestructionActor::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
-
 }
 
-void ATowerDestructionActor::onChaosHit(const FChaosPhysicsCollisionInfo& Info)
+void ATowerDestructionActor::StartPowerPlay()
 {
-	if (bBrokenOnHit) return;
+	GCComp->SetSimulatePhysics(true);
+	GCComp->SetEnableGravity(true);
+	GCComp->WakeAllRigidBodies();         
+	GCComp->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics); 
 	
-	const float Strength = Info.AccumulatedImpulse.Size();
-	if (Strength < BreakImpulseThreshold) return;
-	
-	bBrokenOnHit = true;
-	
-	ApplyStrainAt(Info.Location);
+	FVector TopLocation = GetActorLocation() + FVector(0, 0, 1500); // 타워 높이에 맞춰 조절
+	GCComp->AddImpulseAtLocation(FVector(1000, 0, -500) * 100, TopLocation);
+
+	// 0.5초 뒤에 body 붕괴
+	GetWorldTimerManager().SetTimer(TimerHandle, this, &ATowerDestructionActor::FallBody, 0.5f, false);
 }
 
-void ATowerDestructionActor::ApplyStrainAt(const FVector& WorldPos)
+void ATowerDestructionActor::FallBody()
 {
-	URadialFalloff* StrainField = NewObject<URadialFalloff>(this);
-	StrainField->Magnitude = StrainMagnitude;
-	StrainField->MinRange = 0.f;
-	StrainField->MaxRange = StrainRadius;
-	StrainField->Default = 0.f;
-	StrainField->Radius = StrainRadius;
-	StrainField->Position = WorldPos;
-	StrainField->Falloff = EFieldFalloffType::Field_FallOff_None;
-	
-	GCComp->ApplyPhysicsField(
-		true,
-		EGeometryCollectionPhysicsTypeEnum::Chaos_ExternalClusterStrain,
-		nullptr,
-		StrainField
-		);
+	FVector ForwardForce = GetActorForwardVector() * 5000000.0f; 
+	FVector ImpulsePos = GetActorLocation() + FVector(0, 0, 800); 
+    
+	GCComp->AddImpulseAtLocation(ForwardForce, ImpulsePos);
 }
-

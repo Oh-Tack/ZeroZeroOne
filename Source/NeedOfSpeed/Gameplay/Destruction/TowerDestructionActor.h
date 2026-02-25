@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "GeometryCollection/GeometryCollectionComponent.h"
 #include "TowerDestructionActor.generated.h"
 
 UCLASS()
@@ -23,27 +24,15 @@ public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
-private:
-	UPROPERTY(VisibleAnywhere, Category="Destruction")
+public:
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Physics")
 	UGeometryCollectionComponent* GCComp;
 	
-	UFUNCTION()
-	void onChaosHit(const FChaosPhysicsCollisionInfo& Info);
+	UFUNCTION(BlueprintCallable)
+	void StartPowerPlay();
 	
-	void ApplyStrainAt(const FVector& WorldPos);
-	
-	bool bBrokenOnHit = false;
-	
-	// 튜닝 값
-	UPROPERTY(EditAnywhere, Category="Destruction|Tuning")
-	float InitialImpulse = 450000.f;
-	
-	UPROPERTY(EditAnywhere, Category="Destruction|Tuning")
-	float BreakImpulseThreshold = 100000.f;
-	
-	UPROPERTY(EditAnywhere, Category="Destruction|Tuning")
-	float StrainRadius = 2500.f;
-	
-	UPROPERTY(EditAnywhere, Category="Destruction|Tuning")
-	float StrainMagnitude = 150000.f;
+private:
+	void FallBody();
+
+	FTimerHandle TimerHandle;
 };
