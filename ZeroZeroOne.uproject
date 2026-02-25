@@ -11,7 +11,9 @@
 			"AdditionalDependencies": [
 				"Engine",
 				"StateTreeEditorModule",
-				"ChaosVehicles"
+				"ChaosVehicles",
+				"AIModule",
+				"LearningAgents"
 			]
 		}
 	],
@@ -29,6 +31,7 @@
 		},
 		{
 			"Name": "FieldSystemPlugin",
+			"Name": "LearningAgents",
 			"Enabled": true
 		}
 	]
