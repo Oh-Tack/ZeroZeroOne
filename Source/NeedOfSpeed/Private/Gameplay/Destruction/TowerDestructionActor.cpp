@@ -3,18 +3,32 @@
 
 #include "NeedOfSpeed/Public/Gameplay/Destruction/TowerDestructionActor.h"
 #include "GeometryCollection/GeometryCollectionComponent.h"
-#include "TimerManager.h"
 
 // Sets default values
 ATowerDestructionActor::ATowerDestructionActor()
 {
 	PrimaryActorTick.bCanEverTick = false;
 	
-	GCComp = CreateDefaultSubobject<UGeometryCollectionComponent>(TEXT("TowerMesh"));
+	USceneComponent* SceneRoot = CreateDefaultSubobject<USceneComponent>(TEXT("SceneRoot"));
+	RootComponent = SceneRoot;
+	
+	TowerMeshComp = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("TowerMesh"));
+	TowerMeshComp->SetupAttachment(RootComponent);
+	TowerMeshComp->SetSimulatePhysics(false);
+	TowerMeshComp->SetEnableGravity(false);
+	TowerMeshComp->SetCollisionProfileName(TEXT("BlockAll"));
+	TowerMeshComp->SetNotifyRigidBodyCollision(true); 
+	
+	GCComp = CreateDefaultSubobject<UGeometryCollectionComponent>(TEXT("GCComp"));
 	SetRootComponent(GCComp);
 	
-	// 게임 시작 시 정지 상태 유지 — StartPowerPlay() 호출 전까지 움직이지 않음
 	GCComp->SetSimulatePhysics(false);
+	GCComp->SetEnableGravity(false);
+	GCComp->SetEnableDamageFromCollision(false);
+	GCComp->SetNotifyRigidBodyCollision(true);
+	// GCComp->SetVisibility(false);
+	// GCComp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	// GCComp->SetEnableDamageFromCollision(false);
 }
 
 // Called when the game starts or when spawned
@@ -22,8 +36,7 @@ void ATowerDestructionActor::BeginPlay()
 {
 	Super::BeginPlay();
 	
-	GCComp->SetSimulatePhysics(false);
-	GCComp->SetEnableGravity(false);
+	TowerMeshComp->OnComponentHit.AddDynamic(this, &ATowerDestructionActor::OnTowerMeshHit);
 }
 
 // Called every frame
@@ -32,24 +45,60 @@ void ATowerDestructionActor::Tick(float DeltaTime)
 	Super::Tick(DeltaTime);
 }
 
-void ATowerDestructionActor::StartPowerPlay()
+void ATowerDestructionActor::StartCollapse()
 {
-	GCComp->SetSimulatePhysics(true);
-	GCComp->SetEnableGravity(true);
-	GCComp->WakeAllRigidBodies();         
-	GCComp->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics); 
+	if (bHasCollapsed) return;
+	bHasCollapsed = true;
 	
-	FVector TopLocation = GetActorLocation() + FVector(0, 0, 1500); // 타워 높이에 맞춰 조절
-	GCComp->AddImpulseAtLocation(FVector(1000, 0, -500) * 100, TopLocation);
-
-	// 0.5초 뒤에 body 붕괴
-	GetWorldTimerManager().SetTimer(TimerHandle, this, &ATowerDestructionActor::FallBody, 0.5f, false);
+	TowerMeshComp->SetSimulatePhysics(true);
+	TowerMeshComp->SetEnableGravity(true);
+	GCComp->WakeAllRigidBodies();
+	
+	const FVector RotationAxis  = GetActorRightVector();
+	const FVector AngularImpulse = RotationAxis * CollapseAngularImpulse;
+	/*const FVector ImpulseLocation = GetActorLocation() + GetActorUpVector() * CollapseApplyHeight;
+	const FVector ForwardImpulse  = GetActorForwardVector() * CollapseImpulseStrength;
+	GCComp->AddImpulseAtLocation(ForwardImpulse, ImpulseLocation);
+	
+	GetWorldTimerManager().SetTimer(
+		FallbackFractureTimer,
+		this,
+		&ATowerDestructionActor::FallbackFracture,
+		MaxFallTime,
+		false
+	);*/
 }
 
-void ATowerDestructionActor::FallBody()
+void ATowerDestructionActor::OnTowerMeshHit(UPrimitiveComponent* HitComp, AActor* OtherActor,
+	UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit)
 {
-	FVector ForwardForce = GetActorForwardVector() * 5000000.0f; 
-	FVector ImpulsePos = GetActorLocation() + FVector(0, 0, 800); 
-    
-	GCComp->AddImpulseAtLocation(ForwardForce, ImpulsePos);
+	if (!bHasCollapsed || bFractured) return;
+	
+	if (NormalImpulse.Size() >= FractureImpulseThreshold)
+	{
+		bFractured = true;
+		ActivateFracture(Hit.ImpactPoint);
+	}
+}
+
+void ATowerDestructionActor::ActivateFracture(const FVector& ImpactPoint)
+{
+	TowerMeshComp->SetSimulatePhysics(false);
+	TowerMeshComp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	TowerMeshComp->SetVisibility(false);
+	
+	GCComp->SetWorldTransform(TowerMeshComp->GetComponentTransform());
+	
+	GCComp->SetVisibility(true);
+	GCComp->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+	GCComp->SetEnableDamageFromCollision(true);
+	GCComp->SetSimulatePhysics(true);
+	
+	GCComp->AddRadialImpulse(
+		ImpactPoint,
+		FractureRadialRadius,    
+		FractureRadialStrength, 
+		ERadialImpulseFalloff::RIF_Linear,
+		false                    
+	);
 }
