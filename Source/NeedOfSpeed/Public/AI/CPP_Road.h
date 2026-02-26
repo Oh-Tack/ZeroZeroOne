@@ -30,6 +30,6 @@ public:
 		UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = "Components")
 		USplineComponent* Spline;
 	
-		virtual void GetClosestLocationToPath_Implementation(FVector AILocation, float GetComponentLocation, int SideOfRoad, FVector& LocationToSteerTo) override;
+		virtual void GetClosestLocationToPath_Implementation(FVector AILocation, float GetComponentLocation, float SideOfRoad, FVector& LocationToSteerTo) override;
 	
 };

@@ -27,7 +27,7 @@ void ACPP_Road::Tick(float DeltaTime)
 	Super::Tick(DeltaTime);
 }
 
-void ACPP_Road::GetClosestLocationToPath_Implementation(FVector AILocation, float GetComponentLocation, int SideOfRoad,
+void ACPP_Road::GetClosestLocationToPath_Implementation(FVector AILocation, float GetComponentLocation, float SideOfRoad,
                                                         FVector& LocationToSteerTo)
 {
 	if (!Spline)
