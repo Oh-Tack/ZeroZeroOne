@@ -20,6 +20,10 @@ ATaxiExplosionActor::ATaxiExplosionActor()
 	// 물리 비활성화
 	TaxiMesh->SetSimulatePhysics(false);
 	TaxiMesh->SetEnableGravity(false);
+	
+	// collision 설정
+	TaxiMesh->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+	TaxiMesh->SetCollisionProfileName(UCollisionProfile::PhysicsActor_ProfileName);
 }
 
 // Called when the game starts or when spawned

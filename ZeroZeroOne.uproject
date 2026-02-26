@@ -36,6 +36,10 @@
 		{
 			"Name": "LearningAgents",
 			"Enabled": true
+		},
+		{
+			"Name": "StaticMeshEditorModeling",
+			"Enabled": true
 		}
 	]
 }

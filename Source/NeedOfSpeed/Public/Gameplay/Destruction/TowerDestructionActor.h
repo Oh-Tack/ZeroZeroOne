@@ -48,15 +48,15 @@ private:
 	
 	bool bFractured = false;
 	
-	UPROPERTY(EditAnywhere, Category = "Tower|Physics", meta = (ClampMin = "0.0"))
+	UPROPERTY(EditAnywhere, Category = "Tower|Physics")
 	float CollapseAngularImpulse = 800000.0f;
 	
-	UPROPERTY(EditAnywhere, Category = "Tower|Physics", meta = (ClampMin = "0.0"))
+	UPROPERTY(EditAnywhere, Category = "Tower|Physics")
 	float FractureImpulseThreshold = 100.0f;
 	
-	UPROPERTY(EditAnywhere, Category = "Tower|Physics", meta = (ClampMin = "0.0"))
+	UPROPERTY(EditAnywhere, Category = "Tower|Physics")
 	float FractureRadialStrength = 1500000.0f;
 	
-	UPROPERTY(EditAnywhere, Category = "Tower|Physics", meta = (ClampMin = "0.0"))
+	UPROPERTY(EditAnywhere, Category = "Tower|Physics")
 	float FractureRadialRadius = 500.0f;
 };

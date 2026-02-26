@@ -20,15 +20,14 @@ ATowerDestructionActor::ATowerDestructionActor()
 	TowerMeshComp->SetNotifyRigidBodyCollision(true); 
 	
 	GCComp = CreateDefaultSubobject<UGeometryCollectionComponent>(TEXT("GCComp"));
-	SetRootComponent(GCComp);
+	GCComp->SetupAttachment(RootComponent);
 	
 	GCComp->SetSimulatePhysics(false);
 	GCComp->SetEnableGravity(false);
 	GCComp->SetEnableDamageFromCollision(false);
-	GCComp->SetNotifyRigidBodyCollision(true);
-	// GCComp->SetVisibility(false);
-	// GCComp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	// GCComp->SetEnableDamageFromCollision(false);
+	// GCComp->SetNotifyRigidBodyCollision(true);
+	GCComp->SetVisibility(false);
+	GCComp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 }
 
 // Called when the game starts or when spawned
@@ -47,6 +46,7 @@ void ATowerDestructionActor::Tick(float DeltaTime)
 
 void ATowerDestructionActor::StartCollapse()
 {
+	UE_LOG(LogTemp, Warning, TEXT("[Tower] StartCollapse 호출됨"));
 	if (bHasCollapsed) return;
 	bHasCollapsed = true;
 	
@@ -56,17 +56,7 @@ void ATowerDestructionActor::StartCollapse()
 	
 	const FVector RotationAxis  = GetActorRightVector();
 	const FVector AngularImpulse = RotationAxis * CollapseAngularImpulse;
-	/*const FVector ImpulseLocation = GetActorLocation() + GetActorUpVector() * CollapseApplyHeight;
-	const FVector ForwardImpulse  = GetActorForwardVector() * CollapseImpulseStrength;
-	GCComp->AddImpulseAtLocation(ForwardImpulse, ImpulseLocation);
-	
-	GetWorldTimerManager().SetTimer(
-		FallbackFractureTimer,
-		this,
-		&ATowerDestructionActor::FallbackFracture,
-		MaxFallTime,
-		false
-	);*/
+	TowerMeshComp->AddAngularImpulseInDegrees(AngularImpulse, NAME_None, true);
 }
 
 void ATowerDestructionActor::OnTowerMeshHit(UPrimitiveComponent* HitComp, AActor* OtherActor,
@@ -87,7 +77,8 @@ void ATowerDestructionActor::ActivateFracture(const FVector& ImpactPoint)
 	TowerMeshComp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	TowerMeshComp->SetVisibility(false);
 	
-	GCComp->SetWorldTransform(TowerMeshComp->GetComponentTransform());
+	const FTransform& MeshTransform = TowerMeshComp->GetComponentTransform();
+	GCComp->SetWorldLocationAndRotation(MeshTransform.GetLocation(),MeshTransform.GetRotation());
 	
 	GCComp->SetVisibility(true);
 	GCComp->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
