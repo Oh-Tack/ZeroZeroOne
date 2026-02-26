@@ -12,7 +12,7 @@
 ATaxiExplosionActor::ATaxiExplosionActor()
 {
  	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
-	PrimaryActorTick.bCanEverTick = true;
+	PrimaryActorTick.bCanEverTick = false;
 
 	TaxiMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("TaxiMesh"));
 	SetRootComponent(TaxiMesh);
@@ -20,6 +20,10 @@ ATaxiExplosionActor::ATaxiExplosionActor()
 	// 물리 비활성화
 	TaxiMesh->SetSimulatePhysics(false);
 	TaxiMesh->SetEnableGravity(false);
+	
+	// collision 설정
+	TaxiMesh->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+	TaxiMesh->SetCollisionProfileName(UCollisionProfile::PhysicsActor_ProfileName);
 }
 
 // Called when the game starts or when spawned
@@ -51,22 +55,17 @@ void ATaxiExplosionActor::TriggerExplosion()
 	bHasExploded = true;
 	
 	// 물리 활성화
+	TaxiMesh->SetLinearDamping(0.f);
+	TaxiMesh->SetAngularDamping(0.f); 
 	TaxiMesh->SetEnableGravity(true);
 	TaxiMesh->SetSimulatePhysics(true);
+	TaxiMesh->WakeAllRigidBodies(); 
 	
-	const FVector ExplosionOrigin = GetActorLocation() + ExplosionOriginOffset;
-
-	TaxiMesh->AddRadialImpulse(
-		ExplosionOrigin,
-		ExplosionRadius,
-		RadialImpulseStrength,
-		ERadialImpulseFalloff::RIF_Constant,
-		/*bImpulseVelChange=*/false);
-	
-	const FVector DirectionalForce = LaunchDirection.GetSafeNormal() * LinearImpulseStrength;
-	TaxiMesh->AddImpulse(DirectionalForce, NAME_None, /*bVelChange=*/false);
-	
-	TaxiMesh->AddAngularImpulseInDegrees(AngularImpulseDegrees, NAME_None, /*bVelChange=*/false);
+	GetWorld()->GetTimerManager().SetTimerForNextTick([this]()
+	{
+		TaxiMesh->SetPhysicsLinearVelocity(LaunchDirection.GetSafeNormal() * LinearImpulseStrength);
+		TaxiMesh->SetPhysicsAngularVelocityInDegrees(AngularImpulseDegrees);
+	});
 	
 	if (ExplosionParticle)
 	{
