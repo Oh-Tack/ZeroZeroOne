@@ -34,7 +34,7 @@ ACPP_AI_McLaren::ACPP_AI_McLaren()
 
 	FrontViewBox = CreateDefaultSubobject<UBoxComponent>(TEXT("FrontViewBox"));
 	FrontViewBox->SetupAttachment(MeshComp);
-	FrontViewBox->SetRelativeLocation(FVector(1200.0f, 0.0f, 90.0f));
+	FrontViewBox->SetRelativeLocation(FVector(1000.0f, 0.0f, 90.0f));
 	FrontViewBox->SetRelativeScale3D(FVector(23.5f, 10.0f, 3.5f));
 
 	LeftSideBox = CreateDefaultSubobject<UBoxComponent>(TEXT("LeftSideBox"));

@@ -54,7 +54,7 @@ private:
 	FTimerHandle UpdateTimerHandle;
 
 	UPROPERTY(EditAnywhere, Category = "RaceSettings")
-	float UpdateInterval = 0.1f; // 10Hz (초당 10번 연산)
+	float UpdateInterval = 0.1f;
 	
 	float LastLogTime = 0.0f;
 };

@@ -59,10 +59,10 @@ public:
 	UBoxComponent* RightSideBox;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Vehicle")
-	float Max_Speed = 150.0f;
+	float Max_Speed = 100.0f;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Vehicle")
-	float Min_Speed = 30.0f;
+	float Min_Speed = 40.0f;
 	
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Vehicle")
 	float Angle = 15.0f;

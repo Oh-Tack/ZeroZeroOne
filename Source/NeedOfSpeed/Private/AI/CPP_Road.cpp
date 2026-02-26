@@ -59,6 +59,6 @@ void ACPP_Road::GetClosestLocationToPath_Implementation(FVector AILocation, floa
 			ESplineCoordinateSpace::World);
 	}
 
-	RVec = SideOfRoad ? RVec * 500 : RVec * -500;
+	RVec = SideOfRoad ? RVec * 700 : RVec * -700;
 	LocationToSteerTo = Loc + RVec;
 }
