@@ -21,7 +21,7 @@ public:
 	void GetClosestLocationToPath(
 		FVector AILocation,
 		float AdditionalDista,
-		int SideOfRoad,
+		float SideOfRoad,
 		FVector& LocationToSteerTo
 	);
 };

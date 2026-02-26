@@ -34,18 +34,18 @@ ACPP_AI_McLaren::ACPP_AI_McLaren()
 
 	FrontViewBox = CreateDefaultSubobject<UBoxComponent>(TEXT("FrontViewBox"));
 	FrontViewBox->SetupAttachment(MeshComp);
-	FrontViewBox->SetRelativeLocation(FVector(830.0f, 0.0f, 90.0f));
-	FrontViewBox->SetRelativeScale3D(FVector(15.0f, 7.0f, 3.5f));
+	FrontViewBox->SetRelativeLocation(FVector(1000.0f, 0.0f, 90.0f));
+	FrontViewBox->SetRelativeScale3D(FVector(23.5f, 10.0f, 3.5f));
 
 	LeftSideBox = CreateDefaultSubobject<UBoxComponent>(TEXT("LeftSideBox"));
 	LeftSideBox->SetupAttachment(FrontViewBox);
-	LeftSideBox->SetRelativeLocation(FVector(-60.0f, -130.0f, 0.0f));
-	LeftSideBox->SetRelativeScale3D(FVector(2.5f, 2.8f, 1.0f));
+	LeftSideBox->SetRelativeLocation(FVector(-30.0f, -100.0f, 0.0f));
+	LeftSideBox->SetRelativeScale3D(FVector(1.5f, 1.5f, 1.0f));
 
 	RightSideBox = CreateDefaultSubobject<UBoxComponent>(TEXT("RightSideBox"));
 	RightSideBox->SetupAttachment(FrontViewBox);
-	RightSideBox->SetRelativeLocation(FVector(-60.0f, 130.0f, 0.0f));
-	RightSideBox->SetRelativeScale3D(FVector(2.5f, 2.8f, 1.0f));
+	RightSideBox->SetRelativeLocation(FVector(-30.0f, 100.0f, 0.0f));
+	RightSideBox->SetRelativeScale3D(FVector(1.5f, 1.5f, 1.0f));
 
 	if (MeshComp)
 	{

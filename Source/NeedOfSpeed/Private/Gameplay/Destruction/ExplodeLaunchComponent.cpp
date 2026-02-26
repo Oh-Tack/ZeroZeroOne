@@ -37,5 +37,17 @@ void UExplodeLaunchComponent::TickComponent(float DeltaTime, ELevelTick TickType
 
 void UExplodeLaunchComponent::TriggerExplode()
 {
+	if (!IsValid(TargetMesh)) return;
+	
+	if (IsValid(ExplosionFX))
+	{
+		const FVector SpawnLocation = TargetMesh->GetComponentLocation() + FXOffset;
+		UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+			GetWorld(),
+			ExplosionFX,
+			SpawnLocation,
+			FRotator::ZeroRotator
+		);
+	}
 }
 

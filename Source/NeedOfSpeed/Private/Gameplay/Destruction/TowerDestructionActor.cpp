@@ -3,18 +3,19 @@
 
 #include "NeedOfSpeed/Public/Gameplay/Destruction/TowerDestructionActor.h"
 #include "GeometryCollection/GeometryCollectionComponent.h"
-#include "TimerManager.h"
+#include "NiagaraFunctionLibrary.h"
 
 // Sets default values
 ATowerDestructionActor::ATowerDestructionActor()
 {
-	PrimaryActorTick.bCanEverTick = false;
+	PrimaryActorTick.bCanEverTick = true;
+	PrimaryActorTick.bStartWithTickEnabled = false;
 	
-	GCComp = CreateDefaultSubobject<UGeometryCollectionComponent>(TEXT("TowerMesh"));
-	SetRootComponent(GCComp);
-	
-	// 게임 시작 시 정지 상태 유지 — StartPowerPlay() 호출 전까지 움직이지 않음
+	GCComp = CreateDefaultSubobject<UGeometryCollectionComponent>(TEXT("GCComp"));
+	RootComponent = GCComp;
 	GCComp->SetSimulatePhysics(false);
+	GCComp->SetEnableGravity(false);
+	GCComp->SetEnableDamageFromCollision(false);
 }
 
 // Called when the game starts or when spawned
@@ -22,34 +23,70 @@ void ATowerDestructionActor::BeginPlay()
 {
 	Super::BeginPlay();
 	
-	GCComp->SetSimulatePhysics(false);
-	GCComp->SetEnableGravity(false);
+	// 타워 바닥 중심을 회전 피벗으로 저장
+	const FBoxSphereBounds Bounds = GCComp->CalcBounds(GCComp->GetComponentTransform());
+	CollapseBasePoint   = GetActorLocation();
+	CollapseBasePoint.Z = Bounds.Origin.Z - Bounds.BoxExtent.Z;
+	
+	CollapseAxis = GetActorForwardVector();
 }
 
-// Called every frame
+void ATowerDestructionActor::StartCollapse()
+{
+	if (bHasCollapsed) return;
+	bHasCollapsed = true;
+
+	if (IsValid(ExplosionFX))
+	{
+		UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+			GetWorld(), ExplosionFX,
+			GCComp->GetComponentLocation()
+		);
+	}
+
+	bIsCollapsing = true;
+	SetActorTickEnabled(true);
+}
+
 void ATowerDestructionActor::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+
+	if (!bIsCollapsing) return;
+
+	// 중력처럼 각속도를 점점 가속
+	CollapseSpeed += CollapseAngularAcceleration * DeltaTime;
+	const float DeltaAngle = CollapseSpeed * DeltaTime;
+	CurrentCollapseAngle += DeltaAngle;
+
+	// 피벗(타워 바닥) 기준으로 회전 적용
+	const FQuat  DeltaRot(CollapseAxis, FMath::DegreesToRadians(DeltaAngle));
+	const FVector NewPos = CollapseBasePoint + DeltaRot.RotateVector(GetActorLocation() - CollapseBasePoint);
+	const FQuat  NewRot  = DeltaRot * GetActorQuat();
+	SetActorLocationAndRotation(NewPos, NewRot);
+
+	// 땅에 닿는 각도 도달 → fracture
+	if (CurrentCollapseAngle >= FractureTriggerAngle)
+	{
+		bIsCollapsing = false;
+		SetActorTickEnabled(false);
+		TriggerGroundFracture();
+	}
 }
 
-void ATowerDestructionActor::StartPowerPlay()
+void ATowerDestructionActor::TriggerGroundFracture()
 {
-	GCComp->SetSimulatePhysics(true);
+	// 물리 + 파괴 활성화
 	GCComp->SetEnableGravity(true);
-	GCComp->WakeAllRigidBodies();         
-	GCComp->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics); 
-	
-	FVector TopLocation = GetActorLocation() + FVector(0, 0, 1500); // 타워 높이에 맞춰 조절
-	GCComp->AddImpulseAtLocation(FVector(1000, 0, -500) * 100, TopLocation);
+	GCComp->SetEnableDamageFromCollision(true);
+	GCComp->SetSimulatePhysics(true);
 
-	// 0.5초 뒤에 body 붕괴
-	GetWorldTimerManager().SetTimer(TimerHandle, this, &ATowerDestructionActor::FallBody, 0.5f, false);
-}
-
-void ATowerDestructionActor::FallBody()
-{
-	FVector ForwardForce = GetActorForwardVector() * 5000000.0f; 
-	FVector ImpulsePos = GetActorLocation() + FVector(0, 0, 800); 
-    
-	GCComp->AddImpulseAtLocation(ForwardForce, ImpulsePos);
+	// 파편 날리는 radial impulse (bVelChange=true: 질량 무관하게 속도 직접 적용)
+	GCComp->AddRadialImpulse(
+		GCComp->GetComponentLocation(),
+		800.f,
+		DestructionRadialStrength,
+		ERadialImpulseFalloff::RIF_Linear,
+		true
+	);
 }

@@ -3,7 +3,7 @@
 
 #include "NeedOfSpeed/Public/Gameplay/Destruction/TowerTriggerActor.h"
 #include "NeedOfSpeed/Public/Gameplay/Destruction/TowerDestructionActor.h"
-
+#include "NeedOfSpeed/Public/AI/CPP_AI_McLaren.h"
 
 // Sets default values
 ATowerTriggerActor::ATowerTriggerActor()
@@ -13,8 +13,7 @@ ATowerTriggerActor::ATowerTriggerActor()
 	
 	TriggerBox = CreateDefaultSubobject<UBoxComponent>(TEXT("TriggerBox"));
 	RootComponent = TriggerBox;
-
-	// 이벤트 바인딩
+	
 	TriggerBox->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 	TriggerBox->SetCollisionResponseToAllChannels(ECR_Overlap);
 	TriggerBox->SetGenerateOverlapEvents(true);
@@ -25,7 +24,6 @@ void ATowerTriggerActor::BeginPlay()
 {
 	Super::BeginPlay();
 	
-	// 생성자에서 바인딩하면 World context 없이 실패하므로 BeginPlay에서 바인딩
 	TriggerBox->OnComponentBeginOverlap.AddDynamic(this, &ATowerTriggerActor::OnOverlapBegin);
 }
 
@@ -38,11 +36,24 @@ void ATowerTriggerActor::Tick(float DeltaTime)
 void ATowerTriggerActor::OnOverlapBegin(UPrimitiveComponent* OverlappedComp, AActor* OtherActor,
 	UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
-	if (OtherActor && OtherActor->ActorHasTag("PlayerCar") && TargetTower)
-    {
-        TargetTower->StartPowerPlay(); 
-        Destroy(); 
-    }
+	if (bTriggered) return;
+	
+	UE_LOG(LogTemp, Warning, TEXT("[TowerTrigger] 오버랩 감지: %s"), *OtherActor->GetName());
+	
+	// TODO: 플레이어로 바꾸기
+	if (!Cast<ACPP_AI_McLaren>(OtherActor)) return;
+	
+	// if (!IsValid(TargetTower)) return;
+	
+	if (!IsValid(TargetTower))
+	{
+		UE_LOG(LogTemp, Error, TEXT("[TowerTrigger] TargetTower가 설정되지 않음"));
+		return; 
+	}
+	
+	bTriggered = true;
+	TargetTower->StartCollapse();
+
+	UE_LOG(LogTemp, Log, TEXT("[TowerTrigger] 차량 진입 감지 → %s 붕괴 시작"),
+		   *TargetTower->GetName());
 }
-
-
