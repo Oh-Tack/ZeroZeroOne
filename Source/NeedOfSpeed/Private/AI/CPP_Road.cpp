@@ -35,10 +35,11 @@ void ACPP_Road::GetClosestLocationToPath_Implementation(FVector AILocation, floa
 		return;
 	}
 
+	// 스플라인 시작점으로부터 떨어진 거리
 	float MoveToSpline = Spline->GetDistanceAlongSplineAtLocation(AILocation, ESplineCoordinateSpace::World);
 
 	FVector Loc, RVec;
-	if (MoveToSpline + GetComponentLocation > Spline->GetSplineLength())
+	if (MoveToSpline + GetComponentLocation > Spline->GetSplineLength())	// 한 바퀴를 돌 때 예외 처리
 	{
 		Loc = Spline->GetLocationAtDistanceAlongSpline(
 			(MoveToSpline + GetComponentLocation) - Spline->GetSplineLength(),
@@ -50,11 +51,11 @@ void ACPP_Road::GetClosestLocationToPath_Implementation(FVector AILocation, floa
 	}
 	else
 	{
-		Loc = Spline->GetLocationAtDistanceAlongSpline(
+		Loc = Spline->GetLocationAtDistanceAlongSpline(	// 직선 거리가 아닌 스플라인 곡선을 따라간 위치
 			MoveToSpline + GetComponentLocation,
 			ESplineCoordinateSpace::World);
 
-		RVec = Spline->GetRightVectorAtDistanceAlongSpline(
+		RVec = Spline->GetRightVectorAtDistanceAlongSpline( // 직선 거리가 아닌 스플라인 곡선을 따라간 후 도로의 진향 방향(회전 값)
 			MoveToSpline + GetComponentLocation,
 			ESplineCoordinateSpace::World);
 	}

@@ -89,8 +89,7 @@ float AAIC_Vehicle::CalculateSteering()
 
 	FRotator LookRot = UKismetMathLibrary::FindLookAtRotation(start, SteerTarget);
 	FRotator DeltaRot = UKismetMathLibrary::NormalizedDeltaRotator(LookRot, ControllerVehicle->GetActorRotation());
-
-	// [수정] 조향 매핑 범위를 넓혀서 급격한 핸들 꺾임 시 '멈칫'거리는 한계치 도달 방지
+	
 	return UKismetMathLibrary::MapRangeClamped(DeltaRot.Yaw, -15.0, 15.0, -1, 1);
 }
 
