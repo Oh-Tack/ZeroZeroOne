@@ -74,7 +74,7 @@ void ARacingCar::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent
 void ARacingCar::Throttle(const FInputActionValue& Value)
 {
 	float AxisValue = Value.Get<float>();
-	// 이 로그가 화면에 뜨는지 확인하세요. 안 뜨면 입력 바인딩 문제!
+	
 	if(GEngine) GEngine->AddOnScreenDebugMessage(2, 0.5f, FColor::Cyan, FString::Printf(TEXT("Throttle Input: %f"), AxisValue));
     
 	ChaosMovement->SetThrottleInput(AxisValue);
@@ -98,11 +98,21 @@ void ARacingCar::StartDrift()
 	bDriftKeyPressed = true;
 	bWasDriftingLastFrame = false; // 부스터 기록 초기화
 	
+	ChaosMovement->SetWheelFrictionMultiplier(0, 1.1f);
+	ChaosMovement->SetWheelFrictionMultiplier(1, 1.1f);
+	ChaosMovement->SetWheelFrictionMultiplier(2, DriftFrictionScale);
+	ChaosMovement->SetWheelFrictionMultiplier(3, DriftFrictionScale);
+	ChaosMovement->SetHandbrakeInput(true);
+	
 }
 
 void ARacingCar::StopDrift()
 {
 	bDriftKeyPressed = false;
+	
+	ChaosMovement->SetWheelFrictionMultiplier(2, 1.0f);
+	ChaosMovement->SetWheelFrictionMultiplier(3, 1.0f);
+	ChaosMovement->SetHandbrakeInput(false);
 	
 	if (bWasDriftingLastFrame)
 	{
@@ -148,29 +158,44 @@ void ARacingCar::Tick(float DeltaTime)
 		}
 	}
 	
-	if (bDriftKeyPressed&&velocity.Size() > 1000.0f)
+	if (bDriftKeyPressed&&velocity.Size() > 500.0f)
 	{
 		float CosAngle = FVector::DotProduct(velocity.GetSafeNormal(), Forward);
 		// 시작 조건: 0.94 (약 20도 이상 꺾여야 시작)
 		// 유지 조건: 0.98 (거의 펴져도 Shift만 누르고 있으면 유지)
-		float Threshold = bISDrifting ? 0.98f : 0.979f;
+		float Threshold = bISDrifting ? 0.98f : 0.97f;
 
 		if (CosAngle < Threshold && bDriftKeyPressed)
 		{
 			bISDrifting = true;
 			bWasDriftingLastFrame = true;
-			// 카운터 스티어링 시작
-			// 차가 왼쪽으로 도는지 오르쪽으로 도는지 판별(외적)
-			FVector CrossProduct = FVector::CrossProduct(Forward, velocity);
 			
-			// 미끄러지는 반대방향으로 조향값추가
-			float DriftAngle = CrossProduct.Z;
-			
-			if (ChaosMovement)
+			if (bISDrifting)
 			{
-				float CurrentSteer = ChaosMovement->GetSteeringInput();
-				float CounterSteerAmount = DriftAngle * 1.5f;
-				ChaosMovement->SetSteeringInput(FMath::Clamp(CurrentSteer + CounterSteerAmount, -1.0f, 1.0f));
+					// 현재 속도 벡터의 반대 방향으로 약한 힘을 가함
+					FVector AntiVelocity = -GetVelocity() * 0.01f; 
+					GetMesh()->AddForce(AntiVelocity * GetMesh()->GetMass());
+    
+					// 단순 속도 감쇄
+					// FVector CurrentVel = GetVelocity();
+				    //매 프레임 2%씩 감속
+					// GetMesh()->SetPhysicsLinearVelocity(CurrentVel * 0.98f);
+				}
+			// 카운터 스티어링 시작
+			if (bDriftKeyPressed&&velocity.Size() > 2000.f)
+			{
+				// 차가 왼쪽으로 도는지 오르쪽으로 도는지 판별(외적)
+				FVector CrossProduct = FVector::CrossProduct(Forward, velocity);
+			
+				// 미끄러지는 반대방향으로 조향값추가`
+				float DriftAngle = CrossProduct.Z;
+			
+				if(ChaosMovement)
+				{
+					float CurrentSteer = ChaosMovement->GetSteeringInput();
+					float CounterSteerAmount = DriftAngle * 1.5f;
+					ChaosMovement->SetSteeringInput(FMath::Clamp(CurrentSteer + CounterSteerAmount, -1.0f, 1.0f));
+				}
 			}
 			// 게이지 충전 속도도 조절
 			PowerPlayGauge = FMath::Clamp(PowerPlayGauge + (DriftGaugeRate * DeltaTime), 0.0f, 3.0f);

@@ -62,7 +62,7 @@ protected:
 	
 	// 드리프트 시 사용할 마찰력 계수
 	UPROPERTY(EditAnywhere, Category = "Movement | Drift")
-	float DriftFrictionScale = 0.5f;
+	float DriftFrictionScale = 0.1f;
 
 	// 기본 마찰력 계수
 	float DefaultFrictionScale = 1.0f;
