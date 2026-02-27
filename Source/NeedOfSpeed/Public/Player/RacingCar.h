@@ -4,13 +4,14 @@
 
 #include "CoreMinimal.h"
 #include "WheeledVehiclePawn.h"
+#include "AI/UIn_isVehicle.h"
 #include "RacingCar.generated.h"
 
 /**
  * 
  */
 UCLASS()
-class NEEDOFSPEED_API ARacingCar : public AWheeledVehiclePawn
+class NEEDOFSPEED_API ARacingCar : public AWheeledVehiclePawn, public IUIn_isVehicle
 {
 	GENERATED_BODY()
 	

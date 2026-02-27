@@ -4,104 +4,102 @@
 #include "AIController.h"
 #include "AIC_Vehicle.generated.h"
 
-/**
- * 레이싱 AI 컨트롤러 클래스
- */
+// 전방 선언 (컴파일 속도 향상 및 의존성 감소)
 class UBoxComponent;
+class ACPP_Road;
+
 UCLASS()
 class NEEDOFSPEED_API AAIC_Vehicle : public AAIController
 {
-	GENERATED_BODY()
+    GENERATED_BODY()
 
 public:
-	AAIC_Vehicle();
+    AAIC_Vehicle();
 
 protected:
-	virtual void BeginPlay() override;
+    virtual void BeginPlay() override;
 
 public:
-	virtual void Tick(float DeltaTime) override;
+    virtual void Tick(float DeltaTime) override;
 
-	// -------------------------
-	// 주요 로직 함수
-	// -------------------------
-	/** 조향각 계산 */
-	float CalculateSteering();
-	
-	/** 도로 곡률 등에 따른 목표 최고 속도 계산 */
-	float CalculateTopSpeed();
+    // -------------------------
+    // 주요 로직 함수
+    // -------------------------
+    float CalculateSteering();
+    float CalculateTopSpeed();
+    void CheckForOvertakes();
+    void HandleLaneChange(bool bVehicleInFront, const TArray<AActor*>& LeftActors, const TArray<AActor*>& RightActors);
+    void HandleEmergencyEvade(float DeltaTime);
+    float HandleTargetSpeed();
+    void CalculateThrottleBrake(float TopSpeed, float& Throttle, float& Brake);
 
-	/** 추월 가능 여부 판단 및 상태 업데이트 */
-	void CheckForOvertakes();
+    // 순위 관련 유틸리티
+    UFUNCTION(BlueprintCallable, Category = "AI|Race")
+    int32 GetRaceRank();
 
-	/** 차선 변경 로직 */
-	void HandleLaneChange(bool bVehicleInFront, const TArray<AActor*>& LeftActors, const TArray<AActor*>& RightActors);
+    UFUNCTION(BlueprintCallable, Category = "AI|Race")
+    int32 GetTotalRacers();
 
-	/** 돌발 상황 시 긴급 회피 로직 */
-	void HandleEmergencyEvade(float DeltaTime);
-
-	/** 상황별 최종 목표 속도 결정 (추월/순위 보정 포함) */
-	float HandleTargetSpeed();
-
-	/** 속도 차이에 따른 액셀/브레이크 값 계산 */
-	void CalculateThrottleBrake(float TopSpeed, float& Throttle, float& Brake);
-
-	/** 현재 레이스 순위 가져오기 */
-	int32 GetRaceRank();
-
-	/** 전체 참가 차량 수 가져오기 */
-	int32 GetTotalRacers();
-
-	/** 순위 로그 출력 */
-	void LogRaceRankings();
+    void LogRaceRankings();
 
 public:
-	// -------------------------
-	// 참조 및 컴포넌트
-	// -------------------------
-	UPROPERTY()
-	AActor* ControllerVehicle;
+    // -------------------------
+    // 참조 및 컴포넌트 (UPROPERTY 추가로 GC 보호)
+    // -------------------------
+    UPROPERTY(BlueprintReadOnly, Category = "AI|Internal")
+    AActor* ControllerVehicle;
 
-	UPROPERTY()
-	class ACPP_Road* Road;
+    UPROPERTY(BlueprintReadOnly, Category = "AI|Internal")
+    ACPP_Road* Road;
 
-	UPROPERTY()
-	TArray<AActor*> AllVehicles;
+    // 가비지 컬렉션으로부터 보호하기 위해 TArray에도 UPROPERTY()를 붙여주는 것이 좋습니다.
+    UPROPERTY(BlueprintReadOnly, Category = "AI|Internal")
+    TArray<AActor*> AllVehicles;
 
-	// 센서용 콜리전 박스
-	UPROPERTY()
-	UBoxComponent* FrontBox;
+    UPROPERTY(BlueprintReadOnly, Category = "AI|Internal")
+    UBoxComponent* FrontBox;
 
-	UPROPERTY()
-	UBoxComponent* LeftBox;
+    UPROPERTY(BlueprintReadOnly, Category = "AI|Internal")
+    UBoxComponent* LeftBox;
 
-	UPROPERTY()
-	UBoxComponent* RightBox;
+    UPROPERTY(BlueprintReadOnly, Category = "AI|Internal")
+    UBoxComponent* RightBox;
 
-	UPROPERTY()
-	AActor* VehicleInFrontActor;
+    UPROPERTY(BlueprintReadOnly, Category = "AI|Internal")
+    AActor* VehicleInFrontActor;
 
-	// -------------------------
-	// 상태 및 제어 변수
-	// -------------------------
-	FVector SteerTarget;
-	
-	// 차선 관련 (0.0: 왼쪽, 1.0: 오른쪽)
-	float TargetSideOfRoad;
-	float CurrentSideOfRoad;
+    // -------------------------
+    // 상태 및 제어 변수
+    // -------------------------
+    UPROPERTY(BlueprintReadOnly, Category = "AI|Movement")
+    FVector SteerTarget;
+    
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI|Movement")
+    float TargetSideOfRoad;
 
-	UPROPERTY(EditAnywhere, Category = "AI|Movement")
-	float LaneChangeSpeed;
+    UPROPERTY(BlueprintReadOnly, Category = "AI|Movement")
+    float CurrentSideOfRoad;
 
-	float CurrentLaneChangeSpeed;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI|Movement")
+    float LaneChangeSpeed;
 
-	// 추월 상태 관련
-	bool bIsOvertaking;
-	float OvertakeStartTime;
-	float OvertakeDuration;
+    UPROPERTY(BlueprintReadOnly, Category = "AI|Movement")
+    float CurrentLaneChangeSpeed;
 
-	bool bOverrideTopSpeed;
+    // 상태 플래그
+    UPROPERTY(BlueprintReadOnly, Category = "AI|State")
+    bool bIsOvertaking;
 
-	// 로그용
-	float LastLogTime;
+    UPROPERTY(BlueprintReadOnly, Category = "AI|State")
+    bool bEmergencyBrake; // 양쪽 차선이 막혔을 때 사용하는 플래그
+
+    float OvertakeStartTime;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI|Overtake")
+    float OvertakeDuration;
+
+    // -------------------------
+    // 디버그 및 기타
+    // -------------------------
+    float LastLogTime;
 };

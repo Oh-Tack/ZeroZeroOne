@@ -76,8 +76,16 @@ void ACPP_AIRaceManager::UpdateRaceData()
 		{
 			if (IsValid(Info.Vehicle))
 			{
-				UE_LOG(LogTemp, Log, TEXT("Rank %d: %s (Dist: %.0f)"), 
-					Info.Rank, *Info.Vehicle->GetActorLabel(), Info.DistanceAlongSpline);
+				// AActor를 APawn으로 형변환
+				APawn* VehiclePawn = Cast<APawn>(Info.Vehicle);
+        
+				// Pawn이 맞고, 플레이어가 조종 중인지 확인
+				bool bIsPlayer = VehiclePawn && VehiclePawn->IsPlayerControlled();
+        
+				FString Prefix = bIsPlayer ? TEXT("[PLAYER] ") : TEXT("");
+        
+				UE_LOG(LogTemp, Log, TEXT("Rank %d: %s%s (Dist: %.0f)"), 
+					Info.Rank, *Prefix, *Info.Vehicle->GetActorLabel(), Info.DistanceAlongSpline);
 			}
 		}
 		LastLogTime = CurrentTime;
