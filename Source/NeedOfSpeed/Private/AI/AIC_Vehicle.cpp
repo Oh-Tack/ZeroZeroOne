@@ -16,7 +16,7 @@ AAIC_Vehicle::AAIC_Vehicle()
 
 	TargetSideOfRoad = 1.0f;
 	CurrentSideOfRoad = 1.0f; // 현재 보간된 차선 값
-	LaneChangeSpeed = 2.0f; // 기본 차선 변경 속도
+	LaneChangeSpeed = 3.0f; // 기본 차선 변경 속도
 	CurrentLaneChangeSpeed = LaneChangeSpeed;
 }
 
@@ -89,8 +89,7 @@ float AAIC_Vehicle::CalculateSteering()
 
 	FRotator LookRot = UKismetMathLibrary::FindLookAtRotation(start, SteerTarget);
 	FRotator DeltaRot = UKismetMathLibrary::NormalizedDeltaRotator(LookRot, ControllerVehicle->GetActorRotation());
-
-	// [수정] 조향 매핑 범위를 넓혀서 급격한 핸들 꺾임 시 '멈칫'거리는 한계치 도달 방지
+	
 	return UKismetMathLibrary::MapRangeClamped(DeltaRot.Yaw, -15.0, 15.0, -1, 1);
 }
 
@@ -330,13 +329,13 @@ void AAIC_Vehicle::HandleLaneChange(bool bVehicleInFront, const TArray<AActor*>&
 
 		if (bSafeToChange)
 		{
-			TargetSideOfRoad = IntendedSide; // 차선 변경!
+			TargetSideOfRoad = IntendedSide; // 차선 변경
 			bIsOvertaking = true;
 			OvertakeStartTime = CurrentTime;
 		}
 	}
 
-	// 추월 상태 해제 로직 (원래 차선 복귀 안 함)
+	// 추월 상태 해제 로직
 	if (bIsOvertaking)
 	{
 		float DistanceToFront = 10000.f;
@@ -437,7 +436,7 @@ void AAIC_Vehicle::CalculateThrottleBrake(float TopSpeed, float& Throttle, float
 {
 	if (!ControllerVehicle) return;
 
-	// [추가] 양쪽 다 막힌 상황에서의 최우선 처리
+	// 양쪽 다 막힌 상황에서의 최우선 처리
 	if (bEmergencyBrake)
 	{
 		Throttle = 0.0f;
@@ -450,17 +449,15 @@ void AAIC_Vehicle::CalculateThrottleBrake(float TopSpeed, float& Throttle, float
 
 	if (SpeedDiff < 0.0f)
 	{
-		// 가속 시 50.0f 대신 40.0f 정도로 나눠 더 민첩하게 반응하게 조절 가능
 		Throttle = FMath::Clamp(0.5f + (-SpeedDiff) / 40.0f, 0.3f, 0.9f);
 		Brake = 0.0f;
 	}
 	else
 	{
 		Throttle = 0.0f;
-		// [수정] 30.0f -> 60.0f로 높여서 브레이크를 '콱' 밟아 차가 울컥거리는 현상 완화
 		Brake = FMath::Clamp(SpeedDiff / 45.0f, 0.0f, 1.0f);
 
-		// 미세한 속도 초과는 엔진 브레이크(살짝 제동)만 사용
+		// 미세한 속도 초과는 엔진 브레이크만 사용
 		if (SpeedDiff < 5.0f) Brake *= 0.3f;
 	}
 }

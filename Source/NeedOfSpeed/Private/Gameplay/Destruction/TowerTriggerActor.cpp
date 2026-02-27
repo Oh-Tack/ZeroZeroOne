@@ -17,6 +17,7 @@ ATowerTriggerActor::ATowerTriggerActor()
 	TriggerBox->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 	TriggerBox->SetCollisionResponseToAllChannels(ECR_Overlap);
 	TriggerBox->SetGenerateOverlapEvents(true);
+	TriggerBox->SetHiddenInGame(false);
 }
 
 // Called when the game starts or when spawned
@@ -40,10 +41,7 @@ void ATowerTriggerActor::OnOverlapBegin(UPrimitiveComponent* OverlappedComp, AAc
 	
 	UE_LOG(LogTemp, Warning, TEXT("[TowerTrigger] 오버랩 감지: %s"), *OtherActor->GetName());
 	
-	// TODO: 플레이어로 바꾸기
 	if (!Cast<ARacingCar>(OtherActor)) return;
-	
-	// if (!IsValid(TargetTower)) return;
 	
 	if (!IsValid(TargetTower))
 	{
@@ -52,7 +50,8 @@ void ATowerTriggerActor::OnOverlapBegin(UPrimitiveComponent* OverlappedComp, AAc
 	}
 	
 	bTriggered = true;
-	TargetTower->StartCollapse();
+	const FVector FallDirection = -OtherActor->GetVelocity().GetSafeNormal();
+	TargetTower->StartCollapse(FallDirection);
 
 	UE_LOG(LogTemp, Log, TEXT("[TowerTrigger] 차량 진입 감지 → %s 붕괴 시작"),
 		   *TargetTower->GetName());
