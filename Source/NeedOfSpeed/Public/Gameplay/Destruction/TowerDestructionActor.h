@@ -34,7 +34,7 @@ public:
 	TObjectPtr<UNiagaraSystem> CollapseImpactFX;
 	
 	UFUNCTION(BlueprintCallable, Category = "Tower")
-	void StartCollapse();
+	void StartCollapse(FVector FallDirection);
 	
 	bool bHasCollapsed = false;
 	
