@@ -30,6 +30,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tower|FX")
 	TObjectPtr<UNiagaraSystem> ExplosionFX;
 	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tower|FX")
+	TObjectPtr<UNiagaraSystem> CollapseImpactFX;
+	
 	UFUNCTION(BlueprintCallable, Category = "Tower")
 	void StartCollapse();
 	
@@ -40,11 +43,11 @@ private:
 
 	bool bIsCollapsing = false;
 	float CurrentCollapseAngle = 0.f;
-	float CollapseSpeed = 0.f;   // 현재 각속도 (degrees/sec)
-	FVector CollapseBasePoint;   // 회전 피벗 = 타워 바닥 중심
-	FVector CollapseAxis;        // 회전 축 = Actor 오른쪽 벡터 (앞으로 쓰러지는 방향)
+	float CollapseSpeed = 0.f;   // degrees/sec
+	FVector CollapseBasePoint;  
+	FVector CollapseAxis;       
 
-	// 각가속도 (degrees/sec²). 클수록 빨리 넘어짐
+	// 각가속도 (degrees/sec²) 클수록 빨리 넘어짐
 	UPROPERTY(EditAnywhere, Category = "Tower|Physics", meta = (ClampMin = "0.0"))
 	float CollapseAngularAcceleration = 40.f;
 

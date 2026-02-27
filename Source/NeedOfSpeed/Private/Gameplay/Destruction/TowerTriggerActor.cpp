@@ -3,7 +3,7 @@
 
 #include "NeedOfSpeed/Public/Gameplay/Destruction/TowerTriggerActor.h"
 #include "NeedOfSpeed/Public/Gameplay/Destruction/TowerDestructionActor.h"
-#include "NeedOfSpeed/Public/AI/CPP_AI_McLaren.h"
+#include "NeedOfSpeed/Public/Player/RacingCar.h"
 
 // Sets default values
 ATowerTriggerActor::ATowerTriggerActor()
@@ -41,7 +41,7 @@ void ATowerTriggerActor::OnOverlapBegin(UPrimitiveComponent* OverlappedComp, AAc
 	UE_LOG(LogTemp, Warning, TEXT("[TowerTrigger] 오버랩 감지: %s"), *OtherActor->GetName());
 	
 	// TODO: 플레이어로 바꾸기
-	if (!Cast<ACPP_AI_McLaren>(OtherActor)) return;
+	if (!Cast<ARacingCar>(OtherActor)) return;
 	
 	// if (!IsValid(TargetTower)) return;
 	
