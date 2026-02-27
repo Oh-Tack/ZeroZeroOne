@@ -6,6 +6,7 @@
 #include "Components/StaticMeshComponent.h"
 #include "GameFramework/PlayerController.h"
 #include "Kismet/GameplayStatics.h"
+#include "NiagaraFunctionLibrary.h"
 #include "Particles/ParticleSystem.h"
 
 // Sets default values
@@ -54,6 +55,37 @@ void ATaxiExplosionActor::TriggerExplosion()
 	if (bHasExploded) return;
 	bHasExploded = true;
 	
+	if (ExplosionParticle)
+	{
+		UGameplayStatics::SpawnEmitterAttached(
+			ExplosionParticle,
+			TaxiMesh,
+			NAME_None,
+			ParticleSpawnOffset,
+			FRotator::ZeroRotator,
+			EAttachLocation::KeepRelativeOffset,
+			/*bAutoDestroy=*/true);
+	}
+	
+	if (ExplosionNiagara)
+	{
+		UNiagaraFunctionLibrary::SpawnSystemAttached(
+			ExplosionNiagara,
+			TaxiMesh,
+			NAME_None,
+			ParticleSpawnOffset,
+			FRotator::ZeroRotator,
+			EAttachLocation::KeepRelativeOffset,
+			/*bAutoDestroy=*/true);
+	}
+	
+	// 딜레이 후 날리기
+	FTimerHandle LaunchDelayHandle;
+	GetWorld()->GetTimerManager().SetTimer(LaunchDelayHandle, this, &ATaxiExplosionActor::ExecuteLaunch, LaunchDelay, false);
+}
+
+void ATaxiExplosionActor::ExecuteLaunch()
+{
 	// 물리 활성화
 	TaxiMesh->SetLinearDamping(0.f);
 	TaxiMesh->SetAngularDamping(0.f); 
@@ -66,16 +98,5 @@ void ATaxiExplosionActor::TriggerExplosion()
 		TaxiMesh->SetPhysicsLinearVelocity(LaunchDirection.GetSafeNormal() * LinearImpulseStrength);
 		TaxiMesh->SetPhysicsAngularVelocityInDegrees(AngularImpulseDegrees);
 	});
-	
-	if (ExplosionParticle)
-	{
-		const FVector SpawnLocation = GetActorLocation() + ParticleSpawnOffset;
-		UGameplayStatics::SpawnEmitterAtLocation(
-			GetWorld(),
-			ExplosionParticle,
-			SpawnLocation,
-			FRotator::ZeroRotator,
-			/*bAutoDestroy=*/true);
-	}
 }
 

@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "NiagaraSystem.h"
 #include "TaxiExplosionActor.generated.h"
 
 class UStaticMeshComponent;
@@ -35,7 +36,14 @@ public:
 	TObjectPtr<UParticleSystem> ExplosionParticle;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Explosion|Effects")
+	TObjectPtr<UNiagaraSystem> ExplosionNiagara;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Explosion|Effects")
 	FVector ParticleSpawnOffset = FVector(0.0f, 0.0f, 0.0f);
+	
+	// 이펙트 후 딜레이
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Explosion|Tuning|Timing")
+	float LaunchDelay = 0.2f;
 	
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Explosion|Tuning|LinearImpulse")
@@ -51,5 +59,7 @@ public:
 	void TriggerExplosion();
 
 private:
+	void ExecuteLaunch();
+	
 	bool bHasExploded = false;
 };
