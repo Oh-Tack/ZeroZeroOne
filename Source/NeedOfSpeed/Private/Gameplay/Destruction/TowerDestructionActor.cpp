@@ -28,14 +28,18 @@ void ATowerDestructionActor::BeginPlay()
 	CollapseBasePoint   = GetActorLocation();
 	CollapseBasePoint.Z = Bounds.Origin.Z - Bounds.BoxExtent.Z;
 	
-	CollapseAxis = GetActorForwardVector();
+	// CollapseAxis = GetActorForwardVector();
 }
 
-void ATowerDestructionActor::StartCollapse()
+void ATowerDestructionActor::StartCollapse(FVector FallDirection)
 {
 	if (bHasCollapsed) return;
 	bHasCollapsed = true;
 
+	// 회전축 (넘어질방향)
+	FallDirection.Z = 0.f;
+	CollapseAxis = FVector::CrossProduct(FVector::UpVector, FallDirection.GetSafeNormal()).GetSafeNormal();
+	
 	if (IsValid(ExplosionFX))
 	{
 		UNiagaraFunctionLibrary::SpawnSystemAtLocation(
