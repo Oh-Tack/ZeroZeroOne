@@ -173,7 +173,7 @@ void ARacingCar::Tick(float DeltaTime)
 			if (bISDrifting)
 			{
 					// 현재 속도 벡터의 반대 방향으로 약한 힘을 가함
-					FVector AntiVelocity = (-GetVelocity() * 0.2f);
+					FVector AntiVelocity = (-GetVelocity() * 0.5f);
 					GetMesh()->AddForce(AntiVelocity * GetMesh()->GetMass());
     
 					// 단순 속도 감쇄
@@ -182,7 +182,7 @@ void ARacingCar::Tick(float DeltaTime)
 					// GetMesh()->SetPhysicsLinearVelocity(CurrentVel * 0.98f);
 				}
 			// 카운터 스티어링 시작
-			if (bDriftKeyPressed&&velocity.Size() > 500.f)
+			if (bDriftKeyPressed&&velocity.Size() > 10000.f)
 			{
 				// 차가 왼쪽으로 도는지 오르쪽으로 도는지 판별(외적)
 				FVector CrossProduct = FVector::CrossProduct(Forward, velocity);
