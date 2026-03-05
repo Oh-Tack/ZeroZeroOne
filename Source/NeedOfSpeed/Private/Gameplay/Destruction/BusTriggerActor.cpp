@@ -24,6 +24,11 @@ void ABusTriggerActor::BeginPlay()
 	TriggerBox->OnComponentBeginOverlap.AddDynamic(this, &ABusTriggerActor::OnOverlapBegin);
 }
 
+void ABusTriggerActor::Tick(float DeltaTime)
+{
+	Super::Tick(DeltaTime);
+}
+
 void ABusTriggerActor::OnOverlapBegin(UPrimitiveComponent* OverlappedComp, AActor* OtherActor,
 	UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
