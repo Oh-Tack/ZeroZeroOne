@@ -281,7 +281,7 @@ void ARacingCar::Tick(float DeltaTime)
             }
 
             // 역방향 힘 (감속)
-            FVector AntiVelocity = (-velocity * 0.01f);
+            FVector AntiVelocity = (-velocity * 0.05f);
             GetMesh()->AddForce(AntiVelocity * GetMesh()->GetMass());
 
             // 카운터 스티어링 및 마찰력 조절

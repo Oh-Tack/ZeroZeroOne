@@ -53,7 +53,7 @@ protected:
 	float BoostConsumptionRate = 1.0f; // 초당 1.0씩 소모 (3.0 만점이면 3초 유지)
 
 	UPROPERTY(EditAnywhere, Category = "PowerPlay")
-	float BoostAccelerationForce = 5000.0f; // 부스트 가속 세기
+	float BoostAccelerationForce = 3000.0f; // 부스트 가속 세기
 
 	UPROPERTY(BlueprintReadOnly, Category = "PowerPlay")
 	bool bIsBoosting = false; // 현재 부스트 중인지 여부 (위젯 연결용)
