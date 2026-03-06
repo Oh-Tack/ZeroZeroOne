@@ -379,7 +379,7 @@ float AAIC_Vehicle::HandleTargetSpeed()
     const float GapToLeader = LeadDistance - MyDistance;
 
     // ==============================
-    // 1. Catch-up Speed Boost
+    // 1. Catch-up Speed Boost (기존 유지)
     // ==============================
     if (MyRank > 1 && GapToLeader > 2000.f && TotalCars > 1)
     {
@@ -416,7 +416,7 @@ float AAIC_Vehicle::HandleTargetSpeed()
     }
 
     // ==============================
-    // 3. Safety Clamp
+    // 3. Safety Clamp (기존 유지)
     // ==============================
     if (ACPP_AI_McLaren* AIVehicle = Cast<ACPP_AI_McLaren>(ControllerVehicle))
     {
@@ -456,7 +456,7 @@ void AAIC_Vehicle::CalculateThrottleBrake(float TopSpeed, float& Throttle, float
 	else
 	{
 		Throttle = 0.0f;
-		Brake = FMath::Clamp(SpeedDiff / 45.0f, 0.0f, 1.0f);
+		Brake = FMath::Clamp(SpeedDiff / 30.0f, 0.0f, 1.0f);
 
 		// 미세한 속도 초과는 엔진 브레이크만 사용
 		if (SpeedDiff < 5.0f) Brake *= 0.3f;
