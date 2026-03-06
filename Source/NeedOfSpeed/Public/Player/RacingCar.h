@@ -79,10 +79,10 @@ protected:
 
 	// 라이트 밝기 설정 변수
 	UPROPERTY(EditAnywhere, Category = "Light")
-	float NormalBrakeIntensity = 100.0f; // 평소 밝기
+	float NormalBrakeIntensity = 10.0f; // 평소 밝기
 
 	UPROPERTY(EditAnywhere, Category = "Light")
-	float ActiveBrakeIntensity = 2000.0f; // 브레이크 밟았을 때 밝기
+	float ActiveBrakeIntensity = 100.0f; // 브레이크 밟았을 때 밝기
 	
 	virtual void Tick(float DeltaTime) override;
 	
