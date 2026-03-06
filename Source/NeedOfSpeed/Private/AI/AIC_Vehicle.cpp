@@ -47,6 +47,7 @@ void AAIC_Vehicle::Tick(float DeltaTime)
 
 	// 1. 긴급 회피 및 추월 판단
 	HandleEmergencyEvade(DeltaTime);
+	// CheckForObstacles(DeltaTime);
 	CheckForOvertakes();
 
 	// 2. 차선 보간 연산
@@ -361,72 +362,72 @@ void AAIC_Vehicle::HandleLaneChange(bool bVehicleInFront, const TArray<AActor*>&
 // -------------------------
 float AAIC_Vehicle::HandleTargetSpeed()
 {
-	if (!ControllerVehicle || !Road || !Road->Spline)
-		return 0.f;
+    if (!ControllerVehicle || !Road || !Road->Spline)
+       return 0.f;
 
-	const float BaseTopSpeed = CalculateTopSpeed();
-	float TargetTopSpeed = BaseTopSpeed;
+    const float BaseTopSpeed = CalculateTopSpeed();
+    float TargetTopSpeed = BaseTopSpeed;
 
-	ACPP_AIRaceManager* Manager = ACPP_AIRaceManager::GetInstance(GetWorld());
-	if (!Manager)
-		return BaseTopSpeed;
+    ACPP_AIRaceManager* Manager = ACPP_AIRaceManager::GetInstance(GetWorld());
+    if (!Manager)
+       return BaseTopSpeed;
 
-	const int MyRank = Manager->GetRankOfVehicle(ControllerVehicle);
-	const int TotalCars = Manager->GetTotalRacers();
-	const float MyDistance = Manager->GetDistanceOfVehicle(ControllerVehicle);
-	const float LeadDistance = Manager->GetLeadDistance();
-	const float GapToLeader = LeadDistance - MyDistance;
+    const int MyRank = Manager->GetRankOfVehicle(ControllerVehicle);
+    const int TotalCars = Manager->GetTotalRacers();
+    const float MyDistance = Manager->GetDistanceOfVehicle(ControllerVehicle);
+    const float LeadDistance = Manager->GetLeadDistance();
+    const float GapToLeader = LeadDistance - MyDistance;
 
-	// ==============================
-	// Catch-up Speed Boost
-	// ==============================
-	if (MyRank > 1 && GapToLeader > 2000.f && TotalCars > 1)
-	{
-		const float GapRatio = FMath::Clamp((GapToLeader - 2000.f) / 6000.f, 0.f, 1.f);
-		const float RankRatio = FMath::Clamp((float)(MyRank - 1) / (float)(TotalCars - 1), 0.f, 1.f);
+    // ==============================
+    // 1. Catch-up Speed Boost
+    // ==============================
+    if (MyRank > 1 && GapToLeader > 2000.f && TotalCars > 1)
+    {
+       const float GapRatio = FMath::Clamp((GapToLeader - 2000.f) / 6000.f, 0.f, 1.f);
+       const float RankRatio = FMath::Clamp((float)(MyRank - 1) / (float)(TotalCars - 1), 0.f, 1.f);
 
-		float SpeedBoost = (0.18f * GapRatio) + (0.22f * RankRatio);
-		SpeedBoost = FMath::Clamp(SpeedBoost, 0.1f, 0.5f);
+       float SpeedBoost = (0.18f * GapRatio) + (0.22f * RankRatio);
+       SpeedBoost = FMath::Clamp(SpeedBoost, 0.1f, 0.5f);
 
-		TargetTopSpeed = BaseTopSpeed * (1.f + SpeedBoost);
-	}
+       TargetTopSpeed = BaseTopSpeed * (1.f + SpeedBoost);
+    }
 
-	// ==============================
-	// Front Vehicle Logic
-	// ==============================
-	if (VehicleInFrontActor)
-	{
-		const float FrontDist = Manager->GetDistanceOfVehicle(VehicleInFrontActor);
-		const float DistanceGap = FrontDist - MyDistance;
-		const float FrontSpeed = IUIn_isVehicle::Execute_GetCurrentSpeed(VehicleInFrontActor);
+    // ==============================
+    // 2. Front Vehicle & Overtake Logic (핵심 수정)
+    // ==============================
+    if (bIsOvertaking)
+    {
+        // 추월 중일 때는 앞차의 존재와 상관없이 최소 베이스 속도의 120% 이상을 유지
+        // 뒤에서 오는 차량에 받히지 않도록 충분한 가속력을 할당합니다.
+        TargetTopSpeed = FMath::Max(TargetTopSpeed, BaseTopSpeed * 1.2f);
+    }
+    else if (VehicleInFrontActor)
+    {
+        // 추월 중이 아닐 때만 앞차와의 거리를 계산하여 감속합니다.
+        const float FrontDist = Manager->GetDistanceOfVehicle(VehicleInFrontActor);
+        const float DistanceGap = FrontDist - MyDistance;
+        const float FrontSpeed = IUIn_isVehicle::Execute_GetCurrentSpeed(VehicleInFrontActor);
 
-		// 추월 중이면 절대 감속하지 않음
-		if (bIsOvertaking)
-		{
-			TargetTopSpeed = FMath::Max(TargetTopSpeed, BaseTopSpeed * 1.2f);
-		}
-		else
-		{
-			if (DistanceGap > 0.f && DistanceGap < 1500.f)
-			{
-				TargetTopSpeed = FMath::Min(TargetTopSpeed, FrontSpeed - 20.f);
-			}
-		}
-	}
+        if (DistanceGap > 0.f && DistanceGap < 1500.f)
+        {
+            // 너무 급격한 감속(-20.f) 대신 앞차 속도와 유사하게 맞추어 급제동을 방지합니다.
+            TargetTopSpeed = FMath::Min(TargetTopSpeed, FrontSpeed - 5.f);
+        }
+    }
 
-	// ==============================
-	// Safety Clamp
-	// ==============================
-	if (ACPP_AI_McLaren* AIVehicle = Cast<ACPP_AI_McLaren>(ControllerVehicle))
-	{
-		TargetTopSpeed = FMath::Clamp(
-			TargetTopSpeed,
-			AIVehicle->Min_Speed,
-			AIVehicle->Max_Speed * 1.35f
-		);
-	}
+    // ==============================
+    // 3. Safety Clamp
+    // ==============================
+    if (ACPP_AI_McLaren* AIVehicle = Cast<ACPP_AI_McLaren>(ControllerVehicle))
+    {
+       TargetTopSpeed = FMath::Clamp(
+          TargetTopSpeed,
+          AIVehicle->Min_Speed,
+          AIVehicle->Max_Speed * 1.35f
+       );
+    }
 
-	return TargetTopSpeed;
+    return TargetTopSpeed;
 }
 
 // -------------------------
@@ -481,4 +482,73 @@ void AAIC_Vehicle::LogRaceRankings() // 호출 안함
 	// 로그는 Manager에서 중앙 집중식으로 한 번만 출력하도록 위임하는 것이 좋습니다.
 	ACPP_AIRaceManager* Manager = ACPP_AIRaceManager::GetInstance(GetWorld());
 	if (Manager) Manager->PrintCurrentRankings();
+}
+
+void AAIC_Vehicle::CheckForObstacles(float DeltaTime)
+{
+    if (!ControllerVehicle) return;
+
+    FVector Start = IUIn_isVehicle::Execute_GetFrontOfCar(ControllerVehicle);
+    FVector Forward = ControllerVehicle->GetActorForwardVector();
+    FVector Right = ControllerVehicle->GetActorRightVector();
+
+    // 감지 거리 및 차량 폭 설정
+    float TraceDistance = 1200.0f; // 약 12미터
+    float VehicleHalfWidth = 100.0f; 
+
+    // 레이캐스트 설정 (3개: 중앙, 좌, 우)
+    TArray<FVector> EndPoints;
+    EndPoints.Add(Start + (Forward * TraceDistance)); // 중앙
+    EndPoints.Add(Start + (Forward * TraceDistance) - (Right * VehicleHalfWidth)); // 좌측
+    EndPoints.Add(Start + (Forward * TraceDistance) + (Right * VehicleHalfWidth)); // 우측
+
+    FCollisionQueryParams Params;
+    Params.AddIgnoredActor(ControllerVehicle);
+
+    bool bObjectDetected = false;
+
+    for (const FVector& End : EndPoints)
+    {
+        FHitResult HitResult;
+        // ECC_PhysicsBody 채널만 감시하도록 설정
+        bool bHit = GetWorld()->LineTraceSingleByChannel(
+            HitResult, 
+            Start, 
+            End, 
+            ECC_PhysicsBody, 
+            Params
+        );
+
+        if (bHit)
+        {
+            bObjectDetected = true;
+            // 디버그 라인 (감지 시 빨간색)
+            DrawDebugLine(GetWorld(), Start, End, FColor::Red, false, 0.1f, 0, 3.0f);
+            break; 
+        }
+        else
+        {
+            // 미감지 시 녹색
+            DrawDebugLine(GetWorld(), Start, End, FColor::Green, false, 0.1f, 0, 1.0f);
+        }
+    }
+
+    // 장애물 발견 시 처리
+    if (bObjectDetected)
+    {
+        // 현재 속도가 낮으면 후진(bEmergencyBrake), 높으면 차선 변경 가속
+        float CurrentSpeed = IUIn_isVehicle::Execute_GetCurrentSpeed(ControllerVehicle);
+        if (CurrentSpeed < 15.0f)
+        {
+            bEmergencyBrake = true;
+            // 후진 시 조향을 반대로 꺾어 탈출각 확보
+            TargetSideOfRoad = (CurrentSideOfRoad > 0.5f) ? 0.0f : 1.0f;
+        }
+        else
+        {
+            // 장애물을 미리 피하기 위해 타겟 차선 변경
+            TargetSideOfRoad = (CurrentSideOfRoad > 0.5f) ? 0.0f : 1.0f;
+            CurrentLaneChangeSpeed = LaneChangeSpeed * 2.5f; 
+        }
+    }
 }

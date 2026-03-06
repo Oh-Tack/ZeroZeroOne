@@ -41,6 +41,7 @@ public:
     int32 GetTotalRacers();
 
     void LogRaceRankings();
+    void CheckForObstacles(float DeltaTime);
 
 public:
     // -------------------------
