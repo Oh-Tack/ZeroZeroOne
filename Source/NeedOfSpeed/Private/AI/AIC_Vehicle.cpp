@@ -10,59 +10,63 @@
 
 AAIC_Vehicle::AAIC_Vehicle()
 {
-	bIsOvertaking = false;
-	OvertakeDuration = 4.0f;
-	LastLogTime = 0.f;
+    bIsOvertaking = false;
+    OvertakeDuration = 4.0f;
+    LastLogTime = 0.f;
 
-	TargetSideOfRoad = 1.0f;
-	CurrentSideOfRoad = 1.0f; // 현재 보간된 차선 값
-	LaneChangeSpeed = 3.0f; // 기본 차선 변경 속도
-	CurrentLaneChangeSpeed = LaneChangeSpeed;
+    TargetSideOfRoad = 1.0f;
+    CurrentSideOfRoad = 1.0f;
+    LaneChangeSpeed = 3.0f;
+    CurrentLaneChangeSpeed = LaneChangeSpeed;
+
+    bEmergencyBrake = false;
 }
 
 void AAIC_Vehicle::BeginPlay()
 {
-	Super::BeginPlay();
+    Super::BeginPlay();
 
-	ControllerVehicle = GetPawn();
+    ControllerVehicle = GetPawn();
+    // 🔹 매 프레임 Cast하는 비용을 줄이기 위해 미리 캐싱
+    CachedAIVehicle = Cast<ACPP_AI_McLaren>(ControllerVehicle);
 
-	Road = Cast<ACPP_Road>(
-		UGameplayStatics::GetActorOfClass(GetWorld(), ACPP_Road::StaticClass())
-	);
+    Road = Cast<ACPP_Road>(
+       UGameplayStatics::GetActorOfClass(GetWorld(), ACPP_Road::StaticClass())
+    );
 
-	// 경기 시작 시 차량 캐싱
-	TArray<AActor*> FoundVehicles;
-	UGameplayStatics::GetAllActorsWithInterface(GetWorld(), UUIn_isVehicle::StaticClass(), FoundVehicles);
+    // 경기 시작 시 차량 캐싱
+    TArray<AActor*> FoundVehicles;
+    UGameplayStatics::GetAllActorsWithInterface(GetWorld(), UUIn_isVehicle::StaticClass(), FoundVehicles);
     
-	// 2. 리스트에서 '나 자신'은 제외 (중요!)
-	FoundVehicles.Remove(ControllerVehicle);
-    
-	AllVehicles = FoundVehicles;
+    FoundVehicles.Remove(ControllerVehicle);
+    AllVehicles = FoundVehicles;
 }
 
 void AAIC_Vehicle::Tick(float DeltaTime)
 {
-	Super::Tick(DeltaTime);
-	if (!ControllerVehicle) return;
+    Super::Tick(DeltaTime);
 
-	// 1. 긴급 회피 및 추월 판단
-	HandleEmergencyEvade(DeltaTime);
-	// CheckForObstacles(DeltaTime);
-	CheckForOvertakes();
+    if (!ControllerVehicle || !CachedAIVehicle) return;
 
-	// 2. 차선 보간 연산
-	CurrentSideOfRoad = FMath::FInterpTo(CurrentSideOfRoad, TargetSideOfRoad, DeltaTime, CurrentLaneChangeSpeed);
+    // 2️⃣ 주변 인지 로직 (우선순위: 장애물 > 추월)
+    // CheckForObstacles(DeltaTime);
+    HandleEmergencyEvade(DeltaTime);
+    CheckForOvertakes();
 
-	// 3. 조향 적용
-	IUIn_isVehicle::Execute_SetSteering(ControllerVehicle, CalculateSteering());
+    // 3️⃣ 차선 보간
+    CurrentSideOfRoad = FMath::FInterpTo(
+       CurrentSideOfRoad,
+       TargetSideOfRoad,
+       DeltaTime,
+       CurrentLaneChangeSpeed
+    );
 
-	// 4. 속도 및 제어 적용
-	float TargetSpeed = HandleTargetSpeed();
-	float Throttle, Brake;
-	CalculateThrottleBrake(TargetSpeed, Throttle, Brake);
+    // 4️⃣ 최종 조향 및 속도 결정
+    float Steering = CalculateSteering();
+    float TargetTopSpeed = CalculateTopSpeed();
 
-	IUIn_isVehicle::Execute_SetThrottle(ControllerVehicle, Throttle);
-	IUIn_isVehicle::Execute_SetBrake(ControllerVehicle, Brake);
+    IUIn_isVehicle::Execute_SetSteering(ControllerVehicle, Steering);
+    HandleTargetSpeed(TargetTopSpeed, DeltaTime, Steering);
 }
 
 // -------------------------
@@ -70,48 +74,97 @@ void AAIC_Vehicle::Tick(float DeltaTime)
 // -------------------------
 float AAIC_Vehicle::CalculateSteering()
 {
-	auto* AIVehicle = Cast<ACPP_AI_McLaren>(ControllerVehicle);
-	if (!Road || !ControllerVehicle || !AIVehicle) return 0;
+    if (!Road || !ControllerVehicle || !CachedAIVehicle) return 0.0f;
 
-	float Curr = IUIn_isVehicle::Execute_GetCurrentSpeed(ControllerVehicle);
+    float Curr = IUIn_isVehicle::Execute_GetCurrentSpeed(ControllerVehicle);
 
-	// [수정] 급커브 상황(저속)에서 시야 거리를 더 짧게 가져가서 정확도 향상
-	float ForwardVision = UKismetMathLibrary::MapRangeClamped(
-		Curr, AIVehicle->Min_Speed, AIVehicle->Max_Speed, 1200.0f, 4500.f
-	);
+    float ForwardVision = UKismetMathLibrary::MapRangeClamped(
+       Curr, CachedAIVehicle->Min_Speed, CachedAIVehicle->Max_Speed, 1500.f, 7500.f
+    );
 
-	FVector start = IUIn_isVehicle::Execute_GetFrontOfCar(ControllerVehicle);
+    FVector start = IUIn_isVehicle::Execute_GetFrontOfCar(ControllerVehicle);
 
-	FVector LeftLanePos, RightLanePos;
-	Road->GetClosestLocationToPath_Implementation(start, ForwardVision, 0.0f, LeftLanePos);
-	Road->GetClosestLocationToPath_Implementation(start, ForwardVision, 1.0f, RightLanePos);
+    FVector LeftLanePos, RightLanePos;
+    Road->GetClosestLocationToPath_Implementation(start, ForwardVision, 0.0f, LeftLanePos);
+    Road->GetClosestLocationToPath_Implementation(start, ForwardVision, 1.0f, RightLanePos);
 
-	SteerTarget = FMath::Lerp(LeftLanePos, RightLanePos, CurrentSideOfRoad);
+    // 멤버 변수 SteerTarget 업데이트
+    SteerTarget = FMath::Lerp(LeftLanePos, RightLanePos, CurrentSideOfRoad);
 
-	FRotator LookRot = UKismetMathLibrary::FindLookAtRotation(start, SteerTarget);
-	FRotator DeltaRot = UKismetMathLibrary::NormalizedDeltaRotator(LookRot, ControllerVehicle->GetActorRotation());
-	
-	return UKismetMathLibrary::MapRangeClamped(DeltaRot.Yaw, -15.0, 15.0, -1, 1);
+    FRotator LookRot = UKismetMathLibrary::FindLookAtRotation(start, SteerTarget);
+    FRotator DeltaRot = UKismetMathLibrary::NormalizedDeltaRotator(LookRot, ControllerVehicle->GetActorRotation());
+
+    return UKismetMathLibrary::MapRangeClamped(DeltaRot.Yaw, -25.0f, 25.0f, -1.f, 1.f);
 }
 
 float AAIC_Vehicle::CalculateTopSpeed()
 {
-	auto* AIVehicle = Cast<ACPP_AI_McLaren>(ControllerVehicle);
-	if (!Road || !ControllerVehicle || !AIVehicle) return 0.0f;
+	if (!Road || !ControllerVehicle || !CachedAIVehicle) return 0.0f;
 
-	FVector start = IUIn_isVehicle::Execute_GetFrontOfCar(ControllerVehicle);
+	FVector Start = IUIn_isVehicle::Execute_GetFrontOfCar(ControllerVehicle);
+	float CurrSpeed = IUIn_isVehicle::Execute_GetCurrentSpeed(ControllerVehicle);
 
-	// 현재 보간된 차선 위치 기준의 회전각 계산
-	Road->GetClosestLocationToPath_Implementation(start, 1500, CurrentSideOfRoad, SteerTarget);
-
-	FRotator DeltaRot = UKismetMathLibrary::NormalizedDeltaRotator(
-		UKismetMathLibrary::FindLookAtRotation(start, SteerTarget),
-		ControllerVehicle->GetActorRotation()
+	// 1. 시야 거리 계산
+	float LookAhead = UKismetMathLibrary::MapRangeClamped(
+	   CurrSpeed, CachedAIVehicle->Min_Speed, CachedAIVehicle->Max_Speed, 2000.f, 15000.f
 	);
 
-	return UKismetMathLibrary::MapRangeClamped(
-		abs(DeltaRot.Yaw), 0.0, AIVehicle->Angle, AIVehicle->Max_Speed, AIVehicle->Min_Speed
-	);
+	FVector SpeedLookAtPos;
+	Road->GetClosestLocationToPath_Implementation(Start, LookAhead, CurrentSideOfRoad, SpeedLookAtPos);
+
+	FRotator LookRot = UKismetMathLibrary::FindLookAtRotation(Start, SpeedLookAtPos);
+	FRotator DeltaRot = UKismetMathLibrary::NormalizedDeltaRotator(LookRot, ControllerVehicle->GetActorRotation());
+
+	float Angle = FMath::Abs(DeltaRot.Yaw);
+
+	// 2. 코너 감속 계산 (비선형)
+	float AngleAlpha = FMath::Clamp(Angle / CachedAIVehicle->Angle, 0.0f, 1.0f);
+	float SpeedAlpha = FMath::Pow(AngleAlpha, 1.5f);
+
+	float TargetSpeed = FMath::Lerp(CachedAIVehicle->Max_Speed, CachedAIVehicle->Min_Speed, SpeedAlpha);
+
+	// -------------------------
+	// RubberBand (Catch-up) 시스템
+	// -------------------------
+	ACPP_AIRaceManager* Manager = ACPP_AIRaceManager::GetInstance(GetWorld());
+
+	if (Manager)
+	{
+		float MyDist = Manager->GetDistanceOfVehicle(ControllerVehicle);
+		float LeadDist = Manager->GetLeadDistance();
+
+		float Gap = LeadDist - MyDist;
+
+		// 4000 이상 벌어지면 보정 시작
+		if (Gap > 4000.f)
+		{
+			int MyRank = Manager->GetRankOfVehicle(ControllerVehicle);
+			int Total = FMath::Max(GetTotalRacers(), 2);
+
+			float DistanceAlpha = FMath::Clamp((Gap - 4000.f) / 8000.f, 0.f, 1.f);
+
+			float RankAlpha = 0.f;
+			if (Total > 1)
+			{
+				RankAlpha = (float)(MyRank - 1) / (float)(Total - 1);
+			}
+
+			// 최대 25% 속도 증가
+			float Boost = 1.0f + (DistanceAlpha * RankAlpha * 0.25f);
+
+			TargetSpeed *= Boost;
+		}
+	}
+
+	// -------------------------
+	// 급커브 안전 감속
+	// -------------------------
+	if (Angle > 25.f)
+	{
+		TargetSpeed *= 0.6f;
+	}
+
+	return TargetSpeed;
 }
 
 // -------------------------
@@ -119,47 +172,50 @@ float AAIC_Vehicle::CalculateTopSpeed()
 // -------------------------
 void AAIC_Vehicle::HandleEmergencyEvade(float DeltaTime)
 {
-	if (!ControllerVehicle) return;
+    if (!ControllerVehicle) return;
 
-	UPrimitiveComponent* TargetBox = (TargetSideOfRoad < 0.5f) ? LeftBox : RightBox;
-	if (!TargetBox) return;
+    UPrimitiveComponent* TargetBox = (TargetSideOfRoad < 0.5f) ? LeftBox : RightBox;
+    if (!TargetBox) return;
 
-	TArray<AActor*> OverlappingActors;
-	TargetBox->GetOverlappingActors(OverlappingActors);
-	OverlappingActors.Remove(ControllerVehicle);
+    TArray<AActor*> OverlappingActors;
+    TargetBox->GetOverlappingActors(OverlappingActors);
+    OverlappingActors.Remove(ControllerVehicle);
 
-	if (OverlappingActors.Num() > 0)
-	{
-		float EscapeSide = (TargetSideOfRoad < 0.5f) ? 1.0f : 0.0f;
-		UPrimitiveComponent* EscapeBox = (EscapeSide < 0.5f) ? LeftBox : RightBox;
-		TArray<AActor*> EscapeActors;
-		EscapeBox->GetOverlappingActors(EscapeActors);
-		EscapeActors.Remove(ControllerVehicle);
+    if (OverlappingActors.Num() > 0)
+    {
+       float EscapeSide = (TargetSideOfRoad < 0.5f) ? 1.0f : 0.0f;
+       UPrimitiveComponent* EscapeBox = (EscapeSide < 0.5f) ? LeftBox : RightBox;
+       
+       TArray<AActor*> EscapeActors;
+       if(EscapeBox)
+       {
+           EscapeBox->GetOverlappingActors(EscapeActors);
+           EscapeActors.Remove(ControllerVehicle);
+       }
 
-		if (EscapeActors.Num() == 0) // 피할 곳이 비어있을 때
-		{
-			TargetSideOfRoad = EscapeSide;
-			bIsOvertaking = false;
-			bEmergencyBrake = false; // 탈출 가능하므로 해제
-			CurrentLaneChangeSpeed = LaneChangeSpeed * 3.0f;
-		}
-		else // 양쪽 다 막혔을 때
-		{
-			bEmergencyBrake = true;
-		}
-	}
-	else
-	{
-		bEmergencyBrake = false; // 장애물 없으면 해제
-		CurrentLaneChangeSpeed = FMath::FInterpTo(CurrentLaneChangeSpeed, LaneChangeSpeed, DeltaTime, 2.0f);
-	}
+       if (EscapeActors.Num() == 0) 
+       {
+          TargetSideOfRoad = EscapeSide;
+          bIsOvertaking = false;
+          bEmergencyBrake = false;
+          CurrentLaneChangeSpeed = LaneChangeSpeed * 3.0f;
+       }
+       else 
+       {
+          bEmergencyBrake = true;
+       }
+    }
+    else
+    {
+       bEmergencyBrake = false;
+       CurrentLaneChangeSpeed = FMath::FInterpTo(CurrentLaneChangeSpeed, LaneChangeSpeed, DeltaTime, 2.0f);
+    }
 }
 
 void AAIC_Vehicle::CheckForOvertakes()
 {
     if (!ControllerVehicle) return;
 
-    // 1️⃣ 충돌 박스 가져오기 (인터페이스를 통해 각 차량의 BoxComponent 참조)
     IUIn_isVehicle::Execute_GetCollisionBoxes(ControllerVehicle, FrontBox, LeftBox, RightBox);
     if (!FrontBox || !LeftBox || !RightBox) return;
 
@@ -168,7 +224,6 @@ void AAIC_Vehicle::CheckForOvertakes()
     LeftBox->GetOverlappingActors(LeftActors);
     RightBox->GetOverlappingActors(RightActors);
     
-    // 자기 자신 제거 (필수!)
     FrontActors.Remove(ControllerVehicle);
     LeftActors.Remove(ControllerVehicle);
     RightActors.Remove(ControllerVehicle);
@@ -184,42 +239,26 @@ void AAIC_Vehicle::CheckForOvertakes()
     const float MySpeed = IUIn_isVehicle::Execute_GetCurrentSpeed(ControllerVehicle);
 
     float BestScore = -FLT_MAX;
-    bool bPlayerDetected = false;
 
-    // 2️⃣ FrontBox 안에 들어온 차량 중 앞차 선택
     for (AActor* Actor : FrontActors)
     {
-       if (!Actor) continue;
+       // 🔹 인터페이스 체크 추가 (크래시 방지 핵심)
+       if (!Actor || !Actor->GetClass()->ImplementsInterface(UUIn_isVehicle::StaticClass())) continue;
 
-       // Spline 기준 거리 차이
        const float OtherDistance = Manager->GetDistanceOfVehicle(Actor);
        const float Gap = OtherDistance - MyDistance;
 
-       // 뒤 차량 제외 / 너무 먼 차량 제외
-       if (Gap <= 0.f || Gap > 2000.f)
-          continue;
+       if (Gap <= 0.f || Gap > 2000.f) continue;
 
-       // 월드 전방 필터 (정면 60도 이내)
        const FVector Dir = (Actor->GetActorLocation() - MyLocation).GetSafeNormal();
        const float Dot = FVector::DotProduct(MyForward, Dir);
+       if (Dot < 0.5f) continue;
 
-       if (Dot < 0.5f)
-          continue;
-
-       // --- 속도 비교 ---
        const float OtherSpeed = IUIn_isVehicle::Execute_GetCurrentSpeed(Actor);
        const float SpeedAdvantage = MySpeed - OtherSpeed;
 
-       // --- 점수 계산 (추월 대상을 결정하는 우선순위) ---
-       float Score = 0.f;
+       float Score = (1500.f - Gap) * 0.6f + (SpeedAdvantage * 2.0f);
 
-       // 가까울수록 높은 점수
-       Score += (1500.f - Gap) * 0.6f;
-
-       // 내가 더 빠르면(추월 가능성 높음) 가중치
-       Score += SpeedAdvantage * 2.0f;
-
-       // 최고 점수 갱신 (가장 '방해되는' 혹은 '추월하기 좋은' 차량 선택)
        if (Score > BestScore)
        {
           BestScore = Score;
@@ -227,328 +266,109 @@ void AAIC_Vehicle::CheckForOvertakes()
        }
     }
 
-    // 로그 타이머 업데이트
-    if (bPlayerDetected && (GetWorld()->GetTimeSeconds() - LastLogTime >= 1.0f))
-    {
-       LastLogTime = GetWorld()->GetTimeSeconds();
-    }
-
-    // 3️⃣ 차선 변경 처리 (수집된 좌/우 차량 정보 전달)
     HandleLaneChange(VehicleInFrontActor != nullptr, LeftActors, RightActors);
 
-    // ==========================
-    // 🔎 Debug 시각화
-    // ==========================
-
-    // 기본 상자 색상: 아무도 없으면 Green, 앞차 있으면 Red
+    // Debug Visualization
     FColor BoxColor = (VehicleInFrontActor) ? FColor::Red : FColor::Green;
-    
-    // 만약 그 앞차가 플레이어라면 상자 색상을 보라색(Magenta)으로 표시
     APawn* FrontPawn = Cast<APawn>(VehicleInFrontActor);
-    if (FrontPawn && FrontPawn->IsPlayerControlled())
-    {
-        BoxColor = FColor::Magenta;
-    }
+    if (FrontPawn && FrontPawn->IsPlayerControlled()) BoxColor = FColor::Magenta;
 
-    DrawDebugBox(
-       GetWorld(),
-       FrontBox->GetComponentLocation(),
-       FrontBox->GetScaledBoxExtent(),
-       FrontBox->GetComponentQuat(),
-       BoxColor,
-       false,
-       0.1f,
-       0,
-       2.0f
-    );
-
-    if (VehicleInFrontActor)
-    {
-       // 플레이어를 추적 중일 때는 노란색 대신 굵은 보라색 선을 그림
-       FColor LineColor = (FrontPawn && FrontPawn->IsPlayerControlled()) ? FColor::Magenta : FColor::Yellow;
-       float LineThickness = (FrontPawn && FrontPawn->IsPlayerControlled()) ? 10.0f : 10.0f;
-
-       DrawDebugLine(
-          GetWorld(),
-          ControllerVehicle->GetActorLocation(),
-          VehicleInFrontActor->GetActorLocation(),
-          LineColor,
-          false,
-          0.1f,
-          0,
-          LineThickness
-       );
-    }
-
-    // 조향 목표 지점 시각화
+    DrawDebugBox(GetWorld(), FrontBox->GetComponentLocation(), FrontBox->GetScaledBoxExtent(), FrontBox->GetComponentQuat(), BoxColor, false, 0.1f, 0, 2.0f);
     DrawDebugSphere(GetWorld(), SteerTarget, 100.f, 12, FColor::Cyan, false, 0.1f);
 }
 
-void AAIC_Vehicle::HandleLaneChange(bool bVehicleInFront, const TArray<AActor*>& LeftActors,
-                                    const TArray<AActor*>& RightActors)
+void AAIC_Vehicle::HandleLaneChange(bool bVehicleInFront, const TArray<AActor*>& LeftActors, const TArray<AActor*>& RightActors)
 {
-	if (!ControllerVehicle || !Road || !Road->Spline) return;
+    if (!ControllerVehicle || !Road || !Road->Spline) return;
 
-	float CurrentTime = GetWorld()->GetTimeSeconds();
+    float CurrentTime = GetWorld()->GetTimeSeconds();
+    bool bCurrentlyRight = (TargetSideOfRoad > 0.5f);
+    bool bCanChangeLane = bCurrentlyRight ? (LeftActors.Num() == 0) : (RightActors.Num() == 0);
+    bool bCanOvertake = bVehicleInFront && bCanChangeLane && !bIsOvertaking;
 
-	// 1. 현재 AI가 우측(1.0)인지 좌측(0.0)인지 파악
-	bool bCurrentlyRight = (TargetSideOfRoad > 0.5f);
-
-	// 2. 넘어갈 반대 차선이 비어있는지 확인
-	// (우측에 있다면 왼쪽 확인, 좌측에 있다면 오른쪽 확인)
-	bool bCanChangeLane = bCurrentlyRight ? (LeftActors.Num() == 0) : (RightActors.Num() == 0);
-
-	// 3. 추월 시도 조건 충족 확인
-	bool bCanOvertake = bVehicleInFront && bCanChangeLane && !bIsOvertaking;
-
-	if (bCanOvertake)
-	{
-		// 목표 차선을 반대편으로 설정
-		float IntendedSide = bCurrentlyRight ? 0.0f : 1.0f;
-
-		FVector IntendedPosition;
-		Road->GetClosestLocationToPath_Implementation(
-			IUIn_isVehicle::Execute_GetFrontOfCar(ControllerVehicle),
-			1500.f,
-			IntendedSide,
-			IntendedPosition
-		);
-
-		bool bSafeToChange = true;
-		for (AActor* Vehicle : AllVehicles)
-		{
-			if (!Vehicle || Vehicle == ControllerVehicle) continue;
-
-			// Dist 대신 DistSquared 사용 (600의 제곱 = 360000)
-			float DistSq = FVector::DistSquared(IntendedPosition, Vehicle->GetActorLocation());
-			if (DistSq < 360000.f)
-			{
-				bSafeToChange = false;
-				break;
-			}
-		}
-
-		if (bSafeToChange)
-		{
-			TargetSideOfRoad = IntendedSide; // 차선 변경
-			bIsOvertaking = true;
-			OvertakeStartTime = CurrentTime;
-		}
-	}
-
-	// 추월 상태 해제 로직
-	if (bIsOvertaking)
-	{
-		float DistanceToFront = 10000.f;
-		if (VehicleInFrontActor)
-		{
-			DistanceToFront = FVector::Dist(ControllerVehicle->GetActorLocation(),
-			                                VehicleInFrontActor->GetActorLocation());
-		}
-
-		bool bFrontClear = !VehicleInFrontActor;
-		bool bTimeout = (CurrentTime - OvertakeStartTime) > OvertakeDuration;
-		bool bSufficientGap = DistanceToFront > 2000.f;
-
-		if (bFrontClear || bTimeout || bSufficientGap)
-		{
-			bIsOvertaking = false;
-		}
-	}
-}
-
-// -------------------------
-// Target Speed
-// -------------------------
-float AAIC_Vehicle::HandleTargetSpeed()
-{
-    if (!ControllerVehicle || !Road || !Road->Spline)
-       return 0.f;
-
-    const float BaseTopSpeed = CalculateTopSpeed();
-    float TargetTopSpeed = BaseTopSpeed;
-
-    ACPP_AIRaceManager* Manager = ACPP_AIRaceManager::GetInstance(GetWorld());
-    if (!Manager)
-       return BaseTopSpeed;
-
-    const int MyRank = Manager->GetRankOfVehicle(ControllerVehicle);
-    const int TotalCars = Manager->GetTotalRacers();
-    const float MyDistance = Manager->GetDistanceOfVehicle(ControllerVehicle);
-    const float LeadDistance = Manager->GetLeadDistance();
-    const float GapToLeader = LeadDistance - MyDistance;
-
-    // ==============================
-    // 1. Catch-up Speed Boost (기존 유지)
-    // ==============================
-    if (MyRank > 1 && GapToLeader > 2000.f && TotalCars > 1)
+    if (bCanOvertake)
     {
-       const float GapRatio = FMath::Clamp((GapToLeader - 2000.f) / 6000.f, 0.f, 1.f);
-       const float RankRatio = FMath::Clamp((float)(MyRank - 1) / (float)(TotalCars - 1), 0.f, 1.f);
+       float IntendedSide = bCurrentlyRight ? 0.0f : 1.0f;
+       FVector IntendedPosition;
+       Road->GetClosestLocationToPath_Implementation(IUIn_isVehicle::Execute_GetFrontOfCar(ControllerVehicle), 1500.f, IntendedSide, IntendedPosition);
 
-       float SpeedBoost = (0.18f * GapRatio) + (0.22f * RankRatio);
-       SpeedBoost = FMath::Clamp(SpeedBoost, 0.1f, 0.5f);
+       bool bSafeToChange = true;
+       for (AActor* Vehicle : AllVehicles)
+       {
+          if (!Vehicle || Vehicle == ControllerVehicle) continue;
+          // 🔹 성능을 위해 DistSquared 사용 (600^2 = 360,000)
+          if (FVector::DistSquared(IntendedPosition, Vehicle->GetActorLocation()) < 360000.f)
+          {
+             bSafeToChange = false;
+             break;
+          }
+       }
 
-       TargetTopSpeed = BaseTopSpeed * (1.f + SpeedBoost);
+       if (bSafeToChange)
+       {
+          TargetSideOfRoad = IntendedSide;
+          bIsOvertaking = true;
+          OvertakeStartTime = CurrentTime;
+       }
     }
 
-    // ==============================
-    // 2. Front Vehicle & Overtake Logic (핵심 수정)
-    // ==============================
     if (bIsOvertaking)
     {
-        // 추월 중일 때는 앞차의 존재와 상관없이 최소 베이스 속도의 120% 이상을 유지
-        // 뒤에서 오는 차량에 받히지 않도록 충분한 가속력을 할당합니다.
-        TargetTopSpeed = FMath::Max(TargetTopSpeed, BaseTopSpeed * 1.2f);
-    }
-    else if (VehicleInFrontActor)
-    {
-        // 추월 중이 아닐 때만 앞차와의 거리를 계산하여 감속합니다.
-        const float FrontDist = Manager->GetDistanceOfVehicle(VehicleInFrontActor);
-        const float DistanceGap = FrontDist - MyDistance;
-        const float FrontSpeed = IUIn_isVehicle::Execute_GetCurrentSpeed(VehicleInFrontActor);
+       float DistanceToFront = 10000.f;
+       if (VehicleInFrontActor) DistanceToFront = FVector::Dist(ControllerVehicle->GetActorLocation(), VehicleInFrontActor->GetActorLocation());
 
-        if (DistanceGap > 0.f && DistanceGap < 1500.f)
-        {
-            // 너무 급격한 감속(-20.f) 대신 앞차 속도와 유사하게 맞추어 급제동을 방지합니다.
-            TargetTopSpeed = FMath::Min(TargetTopSpeed, FrontSpeed - 5.f);
-        }
+       if (!VehicleInFrontActor || (CurrentTime - OvertakeStartTime) > OvertakeDuration || DistanceToFront > 2000.f)
+       {
+          bIsOvertaking = false;
+       }
     }
-
-    // ==============================
-    // 3. Safety Clamp (기존 유지)
-    // ==============================
-    if (ACPP_AI_McLaren* AIVehicle = Cast<ACPP_AI_McLaren>(ControllerVehicle))
-    {
-       TargetTopSpeed = FMath::Clamp(
-          TargetTopSpeed,
-          AIVehicle->Min_Speed,
-          AIVehicle->Max_Speed * 1.35f
-       );
-    }
-
-    return TargetTopSpeed;
 }
 
-// -------------------------
-// Throttle & Brake
-// -------------------------
-void AAIC_Vehicle::CalculateThrottleBrake(float TopSpeed, float& Throttle, float& Brake)
+void AAIC_Vehicle::HandleTargetSpeed(float TargetTopSpeed, float DeltaTime, float Steering)
 {
-	if (!ControllerVehicle) return;
+	if (!ControllerVehicle || !CachedAIVehicle) return;
 
-	// 양쪽 다 막힌 상황에서의 최우선 처리
-	if (bEmergencyBrake)
+	float CurrentSpeed = IUIn_isVehicle::Execute_GetCurrentSpeed(ControllerVehicle);
+	float SpeedDiff = CurrentSpeed - TargetTopSpeed;
+
+	float Throttle = 0.0f;
+	float Brake = 0.0f;
+
+	if (SpeedDiff > 0)
 	{
+		// 🔹 브레이크 강도 대폭 강화
+		// 차이가 클수록 즉시 최대 제동(1.0)을 수행하도록 분모 값을 낮춤
+		Brake = FMath::Clamp(SpeedDiff / 4.0f, 0.0f, 1.0f);
+        
+		// 아주 급격한 감속이 필요한 경우 스로틀을 완전히 차단
 		Throttle = 0.0f;
-		Brake = 1.0f;
-		return;
-	}
-
-	float Curr = IUIn_isVehicle::Execute_GetCurrentSpeed(ControllerVehicle);
-	float SpeedDiff = Curr - TopSpeed;
-
-	if (SpeedDiff < 0.0f)
-	{
-		Throttle = FMath::Clamp(0.5f + (-SpeedDiff) / 40.0f, 0.3f, 0.9f);
-		Brake = 0.0f;
 	}
 	else
 	{
-		Throttle = 0.0f;
-		Brake = FMath::Clamp(SpeedDiff / 30.0f, 0.0f, 1.0f);
-
-		// 미세한 속도 초과는 엔진 브레이크만 사용
-		if (SpeedDiff < 5.0f) Brake *= 0.3f;
+		Throttle = 1.0f;
+		Brake = 0.0f;
 	}
+
+	// 코너링 중 타이어 접지력을 위해 스로틀 미세 조절 (Optional)
+	if (FMath::Abs(Steering) > 0.6f && CurrentSpeed > CachedAIVehicle->Min_Speed)
+	{
+		Throttle *= 0.5f; 
+	}
+
+	IUIn_isVehicle::Execute_SetThrottle(ControllerVehicle, Throttle);
+	IUIn_isVehicle::Execute_SetBrake(ControllerVehicle, Brake);
 }
 
 // -------------------------
-// Race Info
+// Race Info (Helper functions)
 // -------------------------
 int AAIC_Vehicle::GetRaceRank()
 {
-	ACPP_AIRaceManager* Manager = ACPP_AIRaceManager::GetInstance(GetWorld());
-	return Manager ? Manager->GetRankOfVehicle(ControllerVehicle) : 1;
+    ACPP_AIRaceManager* Manager = ACPP_AIRaceManager::GetInstance(GetWorld());
+    return Manager ? Manager->GetRankOfVehicle(ControllerVehicle) : 1;
 }
 
 int AAIC_Vehicle::GetTotalRacers()
 {
-	return AllVehicles.Num();
-}
-
-void AAIC_Vehicle::LogRaceRankings() // 호출 안함
-{
-	// 로그는 Manager에서 중앙 집중식으로 한 번만 출력하도록 위임하는 것이 좋습니다.
-	ACPP_AIRaceManager* Manager = ACPP_AIRaceManager::GetInstance(GetWorld());
-	if (Manager) Manager->PrintCurrentRankings();
-}
-
-void AAIC_Vehicle::CheckForObstacles(float DeltaTime)
-{
-    if (!ControllerVehicle) return;
-
-    FVector Start = IUIn_isVehicle::Execute_GetFrontOfCar(ControllerVehicle);
-    FVector Forward = ControllerVehicle->GetActorForwardVector();
-    FVector Right = ControllerVehicle->GetActorRightVector();
-
-    // 감지 거리 및 차량 폭 설정
-    float TraceDistance = 1200.0f; // 약 12미터
-    float VehicleHalfWidth = 100.0f; 
-
-    // 레이캐스트 설정 (3개: 중앙, 좌, 우)
-    TArray<FVector> EndPoints;
-    EndPoints.Add(Start + (Forward * TraceDistance)); // 중앙
-    EndPoints.Add(Start + (Forward * TraceDistance) - (Right * VehicleHalfWidth)); // 좌측
-    EndPoints.Add(Start + (Forward * TraceDistance) + (Right * VehicleHalfWidth)); // 우측
-
-    FCollisionQueryParams Params;
-    Params.AddIgnoredActor(ControllerVehicle);
-
-    bool bObjectDetected = false;
-
-    for (const FVector& End : EndPoints)
-    {
-        FHitResult HitResult;
-        // ECC_PhysicsBody 채널만 감시하도록 설정
-        bool bHit = GetWorld()->LineTraceSingleByChannel(
-            HitResult, 
-            Start, 
-            End, 
-            ECC_PhysicsBody, 
-            Params
-        );
-
-        if (bHit)
-        {
-            bObjectDetected = true;
-            // 디버그 라인 (감지 시 빨간색)
-            DrawDebugLine(GetWorld(), Start, End, FColor::Red, false, 0.1f, 0, 3.0f);
-            break; 
-        }
-        else
-        {
-            // 미감지 시 녹색
-            DrawDebugLine(GetWorld(), Start, End, FColor::Green, false, 0.1f, 0, 1.0f);
-        }
-    }
-
-    // 장애물 발견 시 처리
-    if (bObjectDetected)
-    {
-        // 현재 속도가 낮으면 후진(bEmergencyBrake), 높으면 차선 변경 가속
-        float CurrentSpeed = IUIn_isVehicle::Execute_GetCurrentSpeed(ControllerVehicle);
-        if (CurrentSpeed < 15.0f)
-        {
-            bEmergencyBrake = true;
-            // 후진 시 조향을 반대로 꺾어 탈출각 확보
-            TargetSideOfRoad = (CurrentSideOfRoad > 0.5f) ? 0.0f : 1.0f;
-        }
-        else
-        {
-            // 장애물을 미리 피하기 위해 타겟 차선 변경
-            TargetSideOfRoad = (CurrentSideOfRoad > 0.5f) ? 0.0f : 1.0f;
-            CurrentLaneChangeSpeed = LaneChangeSpeed * 2.5f; 
-        }
-    }
+    return AllVehicles.Num() + 1; // 자기 자신 포함
 }

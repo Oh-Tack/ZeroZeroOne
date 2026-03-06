@@ -23,6 +23,9 @@ protected:
 	virtual void BeginPlay() override;
 
 	virtual void OnConstruction(const FTransform& Transform) override;
+	
+	UPROPERTY()
+	class ACPP_AI_McLaren* CachedAIVehicle;
 
 public:
 	virtual void Tick(float DeltaTime) override;
@@ -59,11 +62,11 @@ public:
 	UBoxComponent* RightSideBox;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Vehicle")
-	float Max_Speed = 100.0f;
+	float Max_Speed;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Vehicle")
-	float Min_Speed = 40.0f;
+	float Min_Speed;
 	
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Vehicle")
-	float Angle = 15.0f;
+	float Angle;
 };

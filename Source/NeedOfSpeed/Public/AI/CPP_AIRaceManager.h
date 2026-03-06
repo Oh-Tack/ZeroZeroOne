@@ -4,7 +4,7 @@
 #include "GameFramework/Actor.h"
 #include "CPP_AIRaceManager.generated.h"
 
-USTRUCT(BlueprintType)
+USTRUCT()
 struct FRacerInfo
 {
 	GENERATED_BODY()
@@ -12,8 +12,20 @@ struct FRacerInfo
 	UPROPERTY()
 	AActor* Vehicle = nullptr;
 
+	UPROPERTY()
 	float DistanceAlongSpline = 0.f;
+
+	UPROPERTY()
+	float PreviousDistance = 0.f;
+
+	UPROPERTY()
+	int32 Lap = 0;
+
+	UPROPERTY()
 	int32 Rank = 0;
+
+	UPROPERTY()
+	float RaceProgress = 0.f;
 };
 
 UCLASS()
@@ -55,6 +67,9 @@ private:
 
 	UPROPERTY(EditAnywhere, Category = "RaceSettings")
 	float UpdateInterval = 0.1f;
+	
+	UFUNCTION(BlueprintCallable)
+	AActor* GetVehicleByRank(int32 Rank);
 	
 	float LastLogTime = 0.0f;
 };

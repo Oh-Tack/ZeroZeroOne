@@ -41,55 +41,56 @@ void ACPP_AIRaceManager::UpdateRaceData()
 {
 	if (!TargetRoad || !TargetRoad->Spline) return;
 
-	// 1. 모든 차량의 스플라인 거리 계산
+	float TrackLength = TargetRoad->Spline->GetSplineLength();
+
 	for (auto& Info : RacerTable)
 	{
-		if (IsValid(Info.Vehicle))
+		if (!IsValid(Info.Vehicle)) continue;
+
+		FVector Loc = Info.Vehicle->GetActorLocation();
+
+		float Key = TargetRoad->Spline->FindInputKeyClosestToWorldLocation(Loc);
+		float NewDistance = TargetRoad->Spline->GetDistanceAlongSplineAtSplineInputKey(Key);
+
+		// 랩 체크 (루프 트랙 대응)
+		if (NewDistance < Info.PreviousDistance - 2000.f)
 		{
-			FVector Loc = Info.Vehicle->GetActorLocation();
-			float Key = TargetRoad->Spline->FindInputKeyClosestToWorldLocation(Loc);
-			Info.DistanceAlongSpline = TargetRoad->Spline->GetDistanceAlongSplineAtSplineInputKey(Key);
+			Info.Lap++;
 		}
+
+		Info.PreviousDistance = Info.DistanceAlongSpline;
+		Info.DistanceAlongSpline = NewDistance;
+
+		// 레이스 진행도 계산
+		Info.RaceProgress = Info.Lap * TrackLength + Info.DistanceAlongSpline;
 	}
 
-	// 2. 거리순 정렬 (내림차순)
+	// 진행도로 정렬
 	RacerTable.Sort([](const FRacerInfo& A, const FRacerInfo& B) {
-		return A.DistanceAlongSpline > B.DistanceAlongSpline;
+		return A.RaceProgress > B.RaceProgress;
 	});
 
-	// 3. 순위 부여 및 선두 거리 갱신
 	if (RacerTable.Num() > 0)
 	{
-		LeadDistance = RacerTable[0].DistanceAlongSpline;
-		for (int32 i = 0; i < RacerTable.Num(); ++i)
+		LeadDistance = RacerTable[0].RaceProgress;
+
+		for (int32 i = 0; i < RacerTable.Num(); i++)
 		{
 			RacerTable[i].Rank = i + 1;
 		}
 	}
-	
-	// 4. 1초마다 한 번만 모든 차량의 순위를 출력
-	float CurrentTime = GetWorld()->GetTimeSeconds();
-	if (CurrentTime - LastLogTime >= 1.0f)
+}
+
+AActor* ACPP_AIRaceManager::GetVehicleByRank(int32 Rank)
+{
+	for (const auto& Info : RacerTable)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("======= [Race Manager] GLOBAL RANKINGS ======="));
-		for (const auto& Info : RacerTable)
+		if (Info.Rank == Rank)
 		{
-			if (IsValid(Info.Vehicle))
-			{
-				// AActor를 APawn으로 형변환
-				APawn* VehiclePawn = Cast<APawn>(Info.Vehicle);
-        
-				// Pawn이 맞고, 플레이어가 조종 중인지 확인
-				bool bIsPlayer = VehiclePawn && VehiclePawn->IsPlayerControlled();
-        
-				FString Prefix = bIsPlayer ? TEXT("[PLAYER] ") : TEXT("");
-        
-				UE_LOG(LogTemp, Log, TEXT("Rank %d: %s%s (Dist: %.0f)"), 
-					Info.Rank, *Prefix, *Info.Vehicle->GetActorLabel(), Info.DistanceAlongSpline);
-			}
+			return Info.Vehicle;
 		}
-		LastLogTime = CurrentTime;
 	}
+	return nullptr;
 }
 
 int32 ACPP_AIRaceManager::GetRankOfVehicle(AActor* Vehicle)
