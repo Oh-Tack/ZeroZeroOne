@@ -10,6 +10,7 @@
 #include "ChaosWheeledVehicleMovementComponent.h"
 #include "DataWrappers/ChaosVDParticleDataWrapper.h"
 #include "Engine/Engine.h"
+#include "Components/PointLightComponent.h"
 
 ARacingCar::ARacingCar()
 {
@@ -22,6 +23,21 @@ ARacingCar::ARacingCar()
 void ARacingCar::BeginPlay()
 {
 	Super::BeginPlay();
+	
+	TArray<UPointLightComponent*> AllPointLights;
+	GetComponents<UPointLightComponent>(AllPointLights);
+
+	// 그 중에서 아까 'Brake' 태그를 달아준 녀석들만 배열에 저장합니다.
+	for (UPointLightComponent* Light : AllPointLights)
+	{
+		if (Light->ComponentHasTag(TEXT("Brake")))
+		{
+			BrakeLights.Add(Light);
+            
+			// 안전을 위해 게임 시작 시 평소 밝기로 한 번 맞춰줍니다.
+			Light->SetIntensity(NormalBrakeIntensity); 
+		}
+	}
 	
 	ChaosMovement = Cast<UChaosWheeledVehicleMovementComponent>(GetComponentByClass(UChaosWheeledVehicleMovementComponent::StaticClass()));
 
@@ -83,6 +99,21 @@ void ARacingCar::Throttle(const FInputActionValue& Value)
 void ARacingCar::Brake(const FInputActionValue& Value)
 {
 	ChaosMovement->SetBrakeInput(Value.Get<float>());
+	
+	float BrakeInput = Value.Get<float>();
+	ChaosMovement->SetBrakeInput(BrakeInput);
+
+	// 켜질지 꺼질지 목표 밝기 결정
+	float TargetIntensity = (BrakeInput > 0.0f) ? ActiveBrakeIntensity : NormalBrakeIntensity;
+
+	// for문으로 4개의 라이트 밝기를 동시에 업데이트!
+	for (UPointLightComponent* Light : BrakeLights)
+	{
+		if (Light) // 라이트가 배열에 잘 들어있는지 안전 검사
+		{
+			Light->SetIntensity(TargetIntensity);
+		}
+	}
 }
 
 void ARacingCar::Steer(const FInputActionValue& Value)
@@ -131,10 +162,15 @@ void ARacingCar::StartDrift()
 	// 진입 시에만 살짝 뒤를 날려주기 위해 순간적인 토크를 줍니다. (AccelChange는 false로)
 	float EntrySide = ChaosMovement->GetSteeringInput();
 	GetMesh()->AddTorqueInDegrees(FVector(0, 0, EntrySide * 50000000.0f), NAME_None, false); 
-    
+	
 	// 뒷바퀴 마찰력은 0.5f 정도로 유지하여 너무 미끄러지지 않게 합니다.
 	ChaosMovement->SetWheelFrictionMultiplier(2, DriftFrictionScale);
 	ChaosMovement->SetWheelFrictionMultiplier(3, DriftFrictionScale);
+	
+	for (UPointLightComponent* Light : BrakeLights)
+	{
+		if (Light) Light->SetIntensity(ActiveBrakeIntensity);
+	}
 	
 }
 
@@ -167,7 +203,15 @@ void ARacingCar::StopDrift()
     
 	bISDrifting = false;
 	bWasDriftingLastFrame = false;
+	
+	
+	float TargetIntensity = (ChaosMovement->GetBrakeInput() > 0.0f) ? ActiveBrakeIntensity : NormalBrakeIntensity;
+	for (UPointLightComponent* Light : BrakeLights)
+	{
+		if (Light) Light->SetIntensity(TargetIntensity);
+	}
 }
+
 void ARacingCar::ApplyExitBoost()
 {
 	FVector BoostDirection = GetActorForwardVector();
