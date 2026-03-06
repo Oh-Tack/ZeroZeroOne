@@ -27,14 +27,14 @@ void ARacingCar::BeginPlay()
 	TArray<UPointLightComponent*> AllPointLights;
 	GetComponents<UPointLightComponent>(AllPointLights);
 
-	// 그 중에서 아까 'Brake' 태그를 달아준 녀석들만 배열에 저장합니다.
+	// Tag달아놓은 애들만 배열에 저장.
 	for (UPointLightComponent* Light : AllPointLights)
 	{
 		if (Light->ComponentHasTag(TEXT("Brake")))
 		{
 			BrakeLights.Add(Light);
             
-			// 안전을 위해 게임 시작 시 평소 밝기로 한 번 맞춰줍니다.
+			// 시작시 평소 밝기 맞춰줌.
 			Light->SetIntensity(NormalBrakeIntensity); 
 		}
 	}
@@ -106,10 +106,10 @@ void ARacingCar::Brake(const FInputActionValue& Value)
 	// 켜질지 꺼질지 목표 밝기 결정
 	float TargetIntensity = (BrakeInput > 0.0f) ? ActiveBrakeIntensity : NormalBrakeIntensity;
 
-	// for문으로 4개의 라이트 밝기를 동시에 업데이트!
+	// 4개의 라이트 밝기를 동시에 업데이트
 	for (UPointLightComponent* Light : BrakeLights)
 	{
-		if (Light) // 라이트가 배열에 잘 들어있는지 안전 검사
+		if (Light)
 		{
 			Light->SetIntensity(TargetIntensity);
 		}
@@ -128,11 +128,11 @@ void ARacingCar::Steer(const FInputActionValue& Value)
 	float TargetYawRate = SteerValue * MaxYawRate;
 	FVector AngularVel = GetMesh()->GetPhysicsAngularVelocityInDegrees();
     
-	// 보간 속도(InterpSpeed)를 조절하여 회전의 기민함을 튜닝 (10.0f 정도가 적당)
+	// 보간 속도(InterpSpeed)를 조절하여 회전의 기민함을 튜닝
 	float NewYawVel = FMath::FInterpTo(AngularVel.Z, TargetYawRate, GetWorld()->GetDeltaSeconds(), 10.0f);
 	GetMesh()->SetPhysicsAngularVelocityInDegrees(FVector(AngularVel.X, AngularVel.Y, NewYawVel));
 
-	// 2. [핵심] 진행 방향 보정 (Velocity Alignment)
+	// 2. 진행 방향 보정 (Velocity Alignment)
 	// 차가 미끄러지지 않고 레일 위를 달리는 느낌주기위함.
 	FVector CurrentVelocity = GetVelocity();
 	float Speed = CurrentVelocity.Size();
@@ -159,11 +159,11 @@ void ARacingCar::StartDrift()
 	bDriftKeyPressed = true;
 	bDriftKeyPressed = true;
 	if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 1.0f, FColor::Green, TEXT("Drift Key Pressed!"));
-	// 진입 시에만 살짝 뒤를 날려주기 위해 순간적인 토크를 줍니다. (AccelChange는 false로)
+	// 진입 시에만 살짝 뒤를 날려주기 위해 순간적인 토크주기.
 	float EntrySide = ChaosMovement->GetSteeringInput();
 	GetMesh()->AddTorqueInDegrees(FVector(0, 0, EntrySide * 50000000.0f), NAME_None, false); 
 	
-	// 뒷바퀴 마찰력은 0.5f 정도로 유지하여 너무 미끄러지지 않게 합니다.
+	// 뒷바퀴 마찰력은 0.5f 정도로 유지하여 너무 미끄러지지 않게 하기.
 	ChaosMovement->SetWheelFrictionMultiplier(2, DriftFrictionScale);
 	ChaosMovement->SetWheelFrictionMultiplier(3, DriftFrictionScale);
 	
@@ -179,8 +179,7 @@ void ARacingCar::StopDrift()
 	bDriftKeyPressed = false;
 	if (bISDrifting && PowerPlayGauge > 0.1f) // 최소 게이지 조건
 	{
-		bIsBoosting = true; // 부스트 시작!
-		// 초기 충격력을 주고 싶다면 여기에 AddImpulse를 살짝 섞어도 좋습니다.
+		bIsBoosting = true; // 부스트 시작
 	}
     
 	bISDrifting = false;
@@ -192,7 +191,7 @@ void ARacingCar::StopDrift()
 			ChaosMovement->SetWheelFrictionMultiplier(i, 1.0f);
 		}
 		ChaosMovement->SetHandbrakeInput(false);
-		// 조향 입력 초기화 (유저 입력을 다시 받기 위함)
+		// 조향 입력 초기화 인풋 설정 새로 받기 위해서.
 		ChaosMovement->SetSteeringInput(0.0f); 
 	}
 	
@@ -275,7 +274,7 @@ void ARacingCar::Tick(float DeltaTime)
         {
             bISDrifting = true;
             
-            // 드리프트 중일 때만 게이지 충전 (부스트 중이 아닐 때만 충전되게 하려면 조건 추가 가능)
+            // 드리프트 중일 때만 게이지 충전
             if (!bIsBoosting)
             {
                 PowerPlayGauge = FMath::Clamp(PowerPlayGauge + (DriftGaugeRate * DeltaTime), 0.0f, 3.0f);
