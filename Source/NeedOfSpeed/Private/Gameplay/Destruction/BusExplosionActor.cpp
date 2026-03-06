@@ -71,6 +71,9 @@ void ABusExplosionActor::TriggerExplosion()
 
 void ABusExplosionActor::ExecuteLaunch()
 {
+	// 땅과 관통 상태에서 물리 활성화 시 Chaos가 위로 강제 탈출시키는 문제 방지
+	// BusMesh->SetCollisionResponseToChannel(ECC_WorldStatic, ECR_Ignore);
+	
 	BusMesh->SetLinearDamping(0.f);
 	BusMesh->SetAngularDamping(0.f);
 	BusMesh->SetEnableGravity(true);
@@ -81,5 +84,8 @@ void ABusExplosionActor::ExecuteLaunch()
 	{
 		BusMesh->SetPhysicsLinearVelocity(LaunchDirection.GetSafeNormal() * LinearImpulseStrength);
 		BusMesh->SetPhysicsAngularVelocityInDegrees(AngularImpulseDegrees);
+		// BusMesh->AddAngularImpulseInDegrees(AngularImpulseDegrees, NAME_None, true);
+		// 속도 설정 후 충돌 복원
+		// BusMesh->SetCollisionResponseToChannel(ECC_WorldStatic, ECR_Block);
 	});
 }
