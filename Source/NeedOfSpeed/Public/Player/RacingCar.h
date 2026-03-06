@@ -47,27 +47,56 @@ protected:
 	float DriftGaugeRate = 0.5f;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PowerPlay")
-	float DriftExitBoostForce = 800.0f;
+	float DriftExitBoostForce = 1000.0f;
 	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Setup") // 앞바퀴
-	int32 FrontWheelClass = 0;
+	UPROPERTY(EditAnywhere, Category = "PowerPlay")
+	float BoostConsumptionRate = 1.0f; // 초당 1.0씩 소모 (3.0 만점이면 3초 유지)
+
+	UPROPERTY(EditAnywhere, Category = "PowerPlay")
+	float BoostAccelerationForce = 3000.0f; // 부스트 가속 세기
+
+	UPROPERTY(BlueprintReadOnly, Category = "PowerPlay")
+	bool bIsBoosting = false; // 현재 부스트 중인지 여부 (위젯 연결용)
 	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Setup") // 뒷바퀴
-	int32 RearWheelClass = 1;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Racing")
+	int32 CurrentRank = 1; // 현재 순위
+	
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Racing")
+	int32 TotalParticipants = 5; // 총 참가자 수
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Racing")
+	int32 CurrentLap = 1; // 현재 바퀴 수
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Racing")
+	int32 TotalLaps = 3; // 총 바퀴 수
+	
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "MyCar")
 	class UChaosWheeledVehicleMovementComponent* ChaosMovement;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Light")
+	TArray<class UPointLightComponent*> BrakeLights;
+
+	// 라이트 밝기 설정 변수
+	UPROPERTY(EditAnywhere, Category = "Light")
+	float NormalBrakeIntensity = 100.0f; // 평소 밝기
+
+	UPROPERTY(EditAnywhere, Category = "Light")
+	float ActiveBrakeIntensity = 5000.0f; // 브레이크 밟았을 때 밝기
 	
 	virtual void Tick(float DeltaTime) override;
 	
 	// 드리프트 시 사용할 마찰력 계수
 	UPROPERTY(EditAnywhere, Category = "Movement | Drift")
-	float DriftFrictionScale = 0.1f;
+	float DriftFrictionScale = 0.05f;
 
 	// 기본 마찰력 계수
 	float DefaultFrictionScale = 1.0f;
 	
 	bool bWasDriftingLastFrame;
+	
+	
+	
 	
 	
     
@@ -84,3 +113,4 @@ protected:
 
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 };
+ 
