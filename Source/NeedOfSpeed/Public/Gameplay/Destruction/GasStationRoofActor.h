@@ -12,7 +12,7 @@
 class UParticleSystem;
 
 UCLASS()
-class NEEDOFSPEED_API AGasStationRoofActor : public AGeometryCollectionActor
+class NEEDOFSPEED_API AGasStationRoofActor : public AActor
 {
 	GENERATED_BODY()
 
@@ -49,8 +49,8 @@ public:
 	void TriggerDestruction();
 	
 	
-	UPROPERTY()
-	TSubclassOf<AActor> DestroyerActor;
+	// UPROPERTY()
+	// TSubclassOf<AActor> DestroyerActor;
 
 private:
 	UFUNCTION()
