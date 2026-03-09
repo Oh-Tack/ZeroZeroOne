@@ -14,22 +14,27 @@ AGasStationRoofActor::AGasStationRoofActor()
 	RoofGC = CreateDefaultSubobject<UGeometryCollectionComponent>(TEXT("RoofGC"));
 	SetRootComponent(RoofGC);
 	
+	RoofGC->SetSimulatePhysics(false);
+	RoofGC->SetEnableGravity(false);
 	
-	ConstructorHelpers::FClassFinder<AActor> tempDestoyer(TEXT("/Script/Engine.Blueprint'/Game/Track/Blueprints/BP_Destroyer.BP_Destroyer_C'"));
-	if (tempDestoyer.Succeeded())
-	{
-		DestroyerActor = tempDestoyer.Class;
-	}
+	// ConstructorHelpers::FClassFinder<AActor> tempDestoyer(TEXT("/Script/Engine.Blueprint'/Game/Track/Blueprints/BP_Destroyer.BP_Destroyer_C'"));
+	// if (tempDestoyer.Succeeded())
+	// {
+	// 	DestroyerActor = tempDestoyer.Class;
+	// }
 }
 
 void AGasStationRoofActor::BeginPlay()
 {
 	Super::BeginPlay();
 	
+	RoofGC->SetSimulatePhysics(false);
 }
 
 void AGasStationRoofActor::TriggerDestruction()
 {
+	RoofGC->SetEnableGravity(true);
+	RoofGC->SetSimulatePhysics(true);
 	if (ExplosionParticle)
 	{
 		UGameplayStatics::SpawnEmitterAtLocation(
@@ -57,16 +62,16 @@ void AGasStationRoofActor::TriggerDestruction()
 
 void AGasStationRoofActor::ApplyStrain()
 {
-	GEngine->AddOnScreenDebugMessage(-1, 10, FColor::Cyan, GetActorNameOrLabel());
-	
-	GetWorld()->SpawnActor<AActor>(DestroyerActor, GetActorTransform());
+	// GEngine->AddOnScreenDebugMessage(-1, 10, FColor::Cyan, GetActorNameOrLabel());
+	//
+	// GetWorld()->SpawnActor<AActor>(DestroyerActor, GetActorTransform());
 	//fs->GetFieldSystemComponent()->
 	//
-	// RoofGC->ApplyExternalStrain(
-	// 	INDEX_NONE,
-	// 	GetActorLocation(),
-	// 	DestructionRadius,
-	// 	1,
-	// 	1.f,
-	// 	DestructionStrain);
+	RoofGC->ApplyExternalStrain(
+		INDEX_NONE,
+		GetActorLocation(),
+		DestructionRadius,
+		1,
+		1.f,
+		DestructionStrain);
 }
