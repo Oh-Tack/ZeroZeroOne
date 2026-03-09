@@ -5,7 +5,10 @@
 #include "CoreMinimal.h"
 #include "WheeledVehiclePawn.h"
 #include "AI/UIn_isVehicle.h"
+#include "NiagaraComponent.h"
+#include "Components/AudioComponent.h"
 #include "RacingCar.generated.h"
+
 
 /**
  * 
@@ -123,6 +126,15 @@ protected:
 	// 충돌이벤트
 	virtual void NotifyHit(class UPrimitiveComponent* MyComp, AActor* Other, class UPrimitiveComponent* OtherComp, bool bSelfMoved, FVector HitLocation, FVector HitNormal, FVector NormalImpulse, const FHitResult& Hit) override;
 	
+	
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Effects")
+	class UNiagaraComponent* DriftSmokeLeft;  // 왼쪽 뒷바퀴 연기
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Effects")
+	class UNiagaraComponent* DriftSmokeRight; // 오른쪽 뒷바퀴 연기
+	
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Effects")
+	class UAudioComponent* BoostAudio;
     
 	// 입력 처리 함수 
 	void Throttle(const struct FInputActionValue& Value);

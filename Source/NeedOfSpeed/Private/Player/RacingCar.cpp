@@ -24,6 +24,21 @@ ARacingCar::ARacingCar()
 	PowerPlayGauge = 0.0f;
 	
 	ChaosMovement = Cast<UChaosWheeledVehicleMovementComponent>(GetVehicleMovement());
+	
+	// 1. 왼쪽 드리프트 연기 부착
+	DriftSmokeLeft = CreateDefaultSubobject<UNiagaraComponent>(TEXT("DriftSmokeLeft"));
+	DriftSmokeLeft->SetupAttachment(GetMesh()); // 나중에 블루프린트에서 위치 조정
+	DriftSmokeLeft->SetAutoActivate(false);
+
+	// 2. 오른쪽 드리프트 연기 부착
+	DriftSmokeRight = CreateDefaultSubobject<UNiagaraComponent>(TEXT("DriftSmokeRight"));
+	DriftSmokeRight->SetupAttachment(GetMesh());
+	DriftSmokeRight->SetAutoActivate(false);
+
+	// 3. 부스트 효과음
+	BoostAudio = CreateDefaultSubobject<UAudioComponent>(TEXT("BoostAudio"));
+	BoostAudio->SetupAttachment(GetMesh());
+	BoostAudio->SetAutoActivate(false);
 }
 
 void ARacingCar::BeginPlay()
@@ -269,10 +284,12 @@ void ARacingCar::Tick(float DeltaTime)
     
     if (bIsBoosting)
     {
-        // [추가] 부스트 쉐이크 켜기
+    	
+
+        // 부스트 쉐이크 켜기
         if (BoostShakeClass && !ActiveBoostShake && PC && PC->PlayerCameraManager)
         {
-            // 부스트는 강도 1.0으로 강하게 흔들림
+            
             ActiveBoostShake = PC->PlayerCameraManager->StartCameraShake(BoostShakeClass, 0.3f);
         }
 
@@ -293,7 +310,7 @@ void ARacingCar::Tick(float DeltaTime)
     }
     else
     {
-        // [추가] 부스트가 끝났으면 쉐이크 끄기
+        // 부스트가 끝났으면 쉐이크 끄기
         if (ActiveBoostShake && PC && PC->PlayerCameraManager)
         {
             PC->PlayerCameraManager->StopCameraShake(ActiveBoostShake);
