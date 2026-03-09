@@ -11,6 +11,12 @@
 #include "DataWrappers/ChaosVDParticleDataWrapper.h"
 #include "Engine/Engine.h"
 #include "Components/PointLightComponent.h"
+#include "Camera/PlayerCameraManager.h"
+#include "Camera/CameraComponent.h"
+#include "Kismet/GameplayStatics.h"
+#include "Components/SplineComponent.h"
+#include "EngineUtils.h"
+
 
 ARacingCar::ARacingCar()
 {
@@ -18,6 +24,21 @@ ARacingCar::ARacingCar()
 	PowerPlayGauge = 0.0f;
 	
 	ChaosMovement = Cast<UChaosWheeledVehicleMovementComponent>(GetVehicleMovement());
+	
+	// 1. 왼쪽 드리프트 연기 부착
+	DriftSmokeLeft = CreateDefaultSubobject<UNiagaraComponent>(TEXT("DriftSmokeLeft"));
+	DriftSmokeLeft->SetupAttachment(GetMesh()); // 나중에 블루프린트에서 위치 조정
+	DriftSmokeLeft->SetAutoActivate(false);
+
+	// 2. 오른쪽 드리프트 연기 부착
+	DriftSmokeRight = CreateDefaultSubobject<UNiagaraComponent>(TEXT("DriftSmokeRight"));
+	DriftSmokeRight->SetupAttachment(GetMesh());
+	DriftSmokeRight->SetAutoActivate(false);
+
+	// 3. 부스트 효과음
+	BoostAudio = CreateDefaultSubobject<UAudioComponent>(TEXT("BoostAudio"));
+	BoostAudio->SetupAttachment(GetMesh());
+	BoostAudio->SetAutoActivate(false);
 }
 
 void ARacingCar::BeginPlay()
@@ -235,15 +256,47 @@ void ARacingCar::Tick(float DeltaTime)
     FVector Forward = GetActorForwardVector();
     float CurrSpeed = velocity.Size();
     
-    // 1. 게이지 소모 및 부스트 로직 (드리프트 여부와 상관없이 실행)
+    // 카메라 컨트롤러 가져오기
+    APlayerController* PC = Cast<APlayerController>(GetController());
+
+ 
+    // [추가] 고속 주행 카메라 쉐이크
+    
+    if (CurrSpeed > 2500.0f) // 고속 기준 (필요에 따라 조절)
+    {
+        if (HighSpeedShakeClass && !ActiveHighSpeedShake && PC && PC->PlayerCameraManager)
+        {
+            // 강도 0.5 정도로 은은하게 흔들림
+            ActiveHighSpeedShake = PC->PlayerCameraManager->StartCameraShake(HighSpeedShakeClass, 0.1f);
+        }
+    }
+    else
+    {
+        if (ActiveHighSpeedShake && PC && PC->PlayerCameraManager)
+        {
+            PC->PlayerCameraManager->StopCameraShake(ActiveHighSpeedShake);
+            ActiveHighSpeedShake = nullptr;
+        }
+    }
+
+    
+    // 1. 게이지 소모 및 부스트 로직
+    
     if (bIsBoosting)
     {
+    	
+
+        // 부스트 쉐이크 켜기
+        if (BoostShakeClass && !ActiveBoostShake && PC && PC->PlayerCameraManager)
+        {
+            
+            ActiveBoostShake = PC->PlayerCameraManager->StartCameraShake(BoostShakeClass, 0.3f);
+        }
+
         if (PowerPlayGauge > 0.0f)
         {
-            // 게이지 소모
             PowerPlayGauge = FMath::Max(0.0f, PowerPlayGauge - (BoostConsumptionRate * DeltaTime));
 
-            // 전방 추진력 가산
             FVector BoostForce = Forward * BoostAccelerationForce;
             GetMesh()->AddForce(BoostForce * GetMesh()->GetMass());
 
@@ -251,19 +304,28 @@ void ARacingCar::Tick(float DeltaTime)
         }
         else
         {
-            // 게이지 바닥나면 종료
             PowerPlayGauge = 0.0f;
             bIsBoosting = false;
         }
     }
+    else
+    {
+        // 부스트가 끝났으면 쉐이크 끄기
+        if (ActiveBoostShake && PC && PC->PlayerCameraManager)
+        {
+            PC->PlayerCameraManager->StopCameraShake(ActiveBoostShake);
+            ActiveBoostShake = nullptr;
+        }
+    }
 
-    // 2. 드리프트 및 게이지 충전 로직
+    
+    // 2. 드리프트 및 게이지 충전 로직 
+    
     if (bDriftKeyPressed && CurrSpeed > 500.0f)
     {
         float CosAngle = FVector::DotProduct(velocity.GetSafeNormal(), Forward);
         float Threshold = bISDrifting ? 0.98f : 0.94f;
         
-        // 팽이 현상 방지 로직
         FVector AngularVel = GetMesh()->GetPhysicsAngularVelocityInDegrees();
         if (FMath::Abs(AngularVel.Z) > 120.0f)
         {
@@ -274,17 +336,14 @@ void ARacingCar::Tick(float DeltaTime)
         {
             bISDrifting = true;
             
-            // 드리프트 중일 때만 게이지 충전
             if (!bIsBoosting)
             {
                 PowerPlayGauge = FMath::Clamp(PowerPlayGauge + (DriftGaugeRate * DeltaTime), 0.0f, 3.0f);
             }
 
-            // 역방향 힘 (감속)
             FVector AntiVelocity = (-velocity * 0.05f);
             GetMesh()->AddForce(AntiVelocity * GetMesh()->GetMass());
 
-            // 카운터 스티어링 및 마찰력 조절
             if (ChaosMovement && CurrSpeed > 2000.f)
             {
                 FVector CrossProduct = FVector::CrossProduct(Forward, velocity.GetSafeNormal());
@@ -309,4 +368,55 @@ void ARacingCar::Tick(float DeltaTime)
     {
         bISDrifting = false;
     }
-};
+
+	UCameraComponent* MyCamera = FindComponentByClass<UCameraComponent>();
+    
+	if (MyCamera)
+	{
+		float TargetFOV = bIsBoosting ? BoostFOV : NormalFOV;
+		float CurrentFOV = MyCamera->FieldOfView;
+        
+		// FMath::FInterpTo를 사용해 현재 시야각에서 목표 시야각으로 부드럽게 줌 인/아웃
+		MyCamera->SetFieldOfView(FMath::FInterpTo(CurrentFOV, TargetFOV, DeltaTime, 3.0f));
+	}
+}
+
+void ARacingCar::NotifyHit(class UPrimitiveComponent* MyComp, AActor* Other, class UPrimitiveComponent* OtherComp, bool bSelfMoved, FVector HitLocation, FVector HitNormal, FVector NormalImpulse, const FHitResult& Hit)
+{
+	
+	Super::NotifyHit(MyComp, Other, OtherComp, bSelfMoved, HitLocation, HitNormal, NormalImpulse, Hit);
+
+	
+	float ImpactSpeed = GetVelocity().Size();
+
+	
+	if (ImpactSpeed > 500.0f && ImpactShakeClass)
+	{
+		APlayerController* PC = Cast<APlayerController>(GetController());
+		if (PC && PC->PlayerCameraManager)
+		{
+		
+			float ShakeScale = FMath::Clamp(ImpactSpeed / 1000.0f, 0.5f, 3.0f);
+            
+			PC->PlayerCameraManager->StartCameraShake(ImpactShakeClass, ShakeScale);
+            
+			// 충돌 확인
+			if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Yellow, FString::Printf(TEXT("쾅! 충격 강도: %.1f"), ShakeScale));
+		}
+	}
+}
+
+// 결승선 통과
+void ARacingCar::PassFinishLine()
+{
+	if (bCanLap && CurrentLap <= TotalLaps)
+	{
+		CurrentLap++;
+		bCanLap = false;
+        
+		if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 3.0f, FColor::Green, FString::Printf(TEXT("LAP %d / %d"), CurrentLap, TotalLaps));
+	}
+}
+
+
+
