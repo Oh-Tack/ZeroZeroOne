@@ -96,8 +96,32 @@ protected:
 	bool bWasDriftingLastFrame;
 	
 	
+	UPROPERTY(EditAnywhere, Category = "PowerPlay|Camera")
+	TSubclassOf<class UCameraShakeBase> BoostShakeClass; // 부스트 쉐이크 블루프린트
+
+	UPROPERTY(EditAnywhere, Category = "PowerPlay|Camera")
+	TSubclassOf<class UCameraShakeBase> HighSpeedShakeClass; // 고속 주행 쉐이크 블루프린트
+
+	// 현재 재생 중인 쉐이크를 추적하는 포인터
+	UPROPERTY()
+	class UCameraShakeBase* ActiveBoostShake;
+
+	UPROPERTY()
+	class UCameraShakeBase* ActiveHighSpeedShake;
+
+	// FOV (시야각) 설정
+	UPROPERTY(EditAnywhere, Category = "PowerPlay|Camera")
+	float NormalFOV = 90.0f;
+
+	UPROPERTY(EditAnywhere, Category = "PowerPlay|Camera")
+	float BoostFOV = 100.0f;
 	
-	
+	// 충돌 카메라
+	UPROPERTY(EditAnywhere, Category = "PowerPlay|Camera")
+	TSubclassOf<class UCameraShakeBase> ImpactShakeClass; // 충돌용 단발성 쉐이크
+
+	// 충돌이벤트
+	virtual void NotifyHit(class UPrimitiveComponent* MyComp, AActor* Other, class UPrimitiveComponent* OtherComp, bool bSelfMoved, FVector HitLocation, FVector HitNormal, FVector NormalImpulse, const FHitResult& Hit) override;
 	
     
 	// 입력 처리 함수 
@@ -112,5 +136,23 @@ protected:
 	
 
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
+	
+public:
+	// 결승선을 통과 함수
+	UFUNCTION(BlueprintCallable, Category = "Racing")
+	void PassFinishLine();
+    
+	// 중복방지
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Racing")
+	bool bCanLap = true;
+	
+	void UpdateRaceRank();
+
+	// 트랙의 스플라인을 저장할 포인터
+	UPROPERTY()
+	class USplineComponent* TrackSpline;
+
+	// 타이머 핸들 (매 프레임 계산하면 무거우니 0.2초마다 계산)
+	FTimerHandle RankTimerHandle;
 };
  
