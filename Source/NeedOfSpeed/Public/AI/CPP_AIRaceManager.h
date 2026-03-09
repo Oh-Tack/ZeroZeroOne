@@ -51,13 +51,13 @@ public:
 
 	// 디버그용 순위 출력
 	void PrintCurrentRankings();
+	
+	UPROPERTY()
+	TArray<FRacerInfo> RacerTable;
 
 private:
 	/** 주기적으로 순위를 갱신하는 핵심 로직 */
 	void UpdateRaceData();
-
-	UPROPERTY()
-	TArray<FRacerInfo> RacerTable;
 
 	UPROPERTY()
 	class ACPP_Road* TargetRoad;

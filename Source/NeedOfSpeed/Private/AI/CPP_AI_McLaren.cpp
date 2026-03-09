@@ -210,7 +210,7 @@ void ACPP_AI_McLaren::OnVehicleHit(
 
 	float ImpulseStrength = NormalImpulse.Size();
 
-	if (ImpulseStrength > 100000.f || bDestroyCar)
+	if (ImpulseStrength > 500000.f || bDestroyCar)
 	{
 		bDestroyCar = true;
 		// 충돌 감지 비활성화 (연속 Hit 방지)

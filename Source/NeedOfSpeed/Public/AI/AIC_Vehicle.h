@@ -58,7 +58,7 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Race")
 	int GetTotalRacers();
-	void CheckForStaticObstacles(float DeltaTime);
+	void CheckForStaticObstacles(float DeltaTime, const TArray<AAIC_Vehicle*>& AllAIVehicles);
 
 protected:
 	// -------------------------
@@ -134,4 +134,5 @@ private:
 	float AvoidanceForceValue = 0.0f;
 	AActor* LastDetectedObstacle = nullptr; // 마지막으로 감지한 장애물 저장
 	float ObstacleClearanceDistance = 1500.0f; // 이 거리만큼 지나쳐야 회피 종료
+	float AvoidanceCooldown;
 };
