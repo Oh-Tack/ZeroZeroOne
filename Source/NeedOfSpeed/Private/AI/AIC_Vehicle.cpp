@@ -76,27 +76,32 @@ void AAIC_Vehicle::Tick(float DeltaTime)
 // -------------------------
 float AAIC_Vehicle::CalculateSteering()
 {
-    if (!Road || !ControllerVehicle || !CachedAIVehicle) return 0.0f;
+	if (!Road || !ControllerVehicle || !CachedAIVehicle) return 0.0f;
 
-    float Curr = IUIn_isVehicle::Execute_GetCurrentSpeed(ControllerVehicle);
+	float Curr = IUIn_isVehicle::Execute_GetCurrentSpeed(ControllerVehicle);
+	float ForwardVision = UKismetMathLibrary::MapRangeClamped(Curr, CachedAIVehicle->Min_Speed, CachedAIVehicle->Max_Speed, 1500.f, 7500.f);
+	FVector start = IUIn_isVehicle::Execute_GetFrontOfCar(ControllerVehicle);
 
-    float ForwardVision = UKismetMathLibrary::MapRangeClamped(
-       Curr, CachedAIVehicle->Min_Speed, CachedAIVehicle->Max_Speed, 1500.f, 7500.f
-    );
+	FVector LeftLanePos, RightLanePos;
+	Road->GetClosestLocationToPath_Implementation(start, ForwardVision, 0.0f, LeftLanePos);
+	Road->GetClosestLocationToPath_Implementation(start, ForwardVision, 1.0f, RightLanePos);
 
-    FVector start = IUIn_isVehicle::Execute_GetFrontOfCar(ControllerVehicle);
+	// 1️⃣ 기본 타겟: 현재 차선 위치
+	SteerTarget = FMath::Lerp(LeftLanePos, RightLanePos, CurrentSideOfRoad);
 
-    FVector LeftLanePos, RightLanePos;
-    Road->GetClosestLocationToPath_Implementation(start, ForwardVision, 0.0f, LeftLanePos);
-    Road->GetClosestLocationToPath_Implementation(start, ForwardVision, 1.0f, RightLanePos);
+	// 2️⃣ 회피 오프셋 적용: 회피 반경을 1500~1800으로 확장하여 더 확실하게 피하게 함
+	FVector RightVector = ControllerVehicle->GetActorRightVector();
+	float AvoidanceWidth = 1800.0f; 
+	SteerTarget += RightVector * (AvoidanceForceValue * AvoidanceWidth); 
 
-    // 멤버 변수 SteerTarget 업데이트
-    SteerTarget = FMath::Lerp(LeftLanePos, RightLanePos, CurrentSideOfRoad);
+	// 3️⃣ 최종 조향각 계산
+	FRotator LookRot = UKismetMathLibrary::FindLookAtRotation(start, SteerTarget);
+	FRotator DeltaRot = UKismetMathLibrary::NormalizedDeltaRotator(LookRot, ControllerVehicle->GetActorRotation());
 
-    FRotator LookRot = UKismetMathLibrary::FindLookAtRotation(start, SteerTarget);
-    FRotator DeltaRot = UKismetMathLibrary::NormalizedDeltaRotator(LookRot, ControllerVehicle->GetActorRotation());
+	// 디버그용 (최종 타겟 구체)
+	DrawDebugSphere(GetWorld(), SteerTarget, 100.f, 12, FColor::Yellow, false, 0.1f);
 
-    return UKismetMathLibrary::MapRangeClamped(DeltaRot.Yaw, -25.0f, 25.0f, -1.f, 1.f);
+	return UKismetMathLibrary::MapRangeClamped(DeltaRot.Yaw, -25.0f, 25.0f, -1.f, 1.f);
 }
 
 float AAIC_Vehicle::CalculateTopSpeed()
@@ -381,20 +386,19 @@ void AAIC_Vehicle::CheckForStaticObstacles(float DeltaTime)
 
     FVector Start = IUIn_isVehicle::Execute_GetFrontOfCar(ControllerVehicle);
     FVector Forward = ControllerVehicle->GetActorForwardVector();
-    FVector Right = ControllerVehicle->GetActorRightVector();
 
-    // 레이캐스트 설정 (부채꼴 모양으로 5개 발사)
-    int32 TraceCount = 5;
-    float TraceLength = 2500.f; // 감지 거리
-    float SpreadAngle = 30.f;   // 전체 부채꼴 각도
+    int32 TraceCount = 9; // 사각지대를 줄이기 위해 레이 개수 증가
+    float TraceLength = 3500.f;
+    float SpreadAngle = 60.f; // 레이 각도를 넓혀서 측면 감지력 강화
 
-    FHitResult BestHit;
-    bool bHitObstacle = false;
-    float AvoidanceForce = 0.f;
+    bool bRayHit = false;
+    float CurrentFrameAvoidance = 0.f;
+    float MinHitDistance = TraceLength;
+    AActor* CurrentHitActor = nullptr;
 
+    // 1️⃣ 레이캐스트 탐색
     for (int32 i = 0; i < TraceCount; i++)
     {
-        // -15도부터 +15도까지 레이 계산
         float Angle = -SpreadAngle / 2.0f + (SpreadAngle / (TraceCount - 1)) * i;
         FVector TraceDir = Forward.RotateAngleAxis(Angle, FVector::UpVector);
         FVector End = Start + (TraceDir * TraceLength);
@@ -403,45 +407,56 @@ void AAIC_Vehicle::CheckForStaticObstacles(float DeltaTime)
         FCollisionQueryParams Params;
         Params.AddIgnoredActor(ControllerVehicle);
 
-        // 레이캐스트 실행
         if (GetWorld()->LineTraceSingleByChannel(Hit, Start, End, ECC_WorldDynamic, Params))
         {
-            // Tag_PowerPlay 태그 확인
             if (Hit.GetActor() && Hit.GetActor()->ActorHasTag(FName("Tag_PowerPlay")))
             {
-                bHitObstacle = true;
-                
-                // 장애물이 중앙(0도)에 가까울수록, 거리가 가까울수록 강한 회피력 발생
+                bRayHit = true;
+                CurrentHitActor = Hit.GetActor();
+                MinHitDistance = FMath::Min(MinHitDistance, Hit.Distance);
+
                 float DistanceWeight = 1.0f - (Hit.Distance / TraceLength);
                 float AngleWeight = 1.0f - (FMath::Abs(Angle) / (SpreadAngle / 2.0f));
-                
-                // 장애물이 왼쪽에 있으면 오른쪽으로(+), 오른쪽에 있으면 왼쪽으로(-) 밀어냄
                 float Direction = (Angle > 0) ? -1.0f : 1.0f; 
-                AvoidanceForce += Direction * DistanceWeight * AngleWeight;
+                CurrentFrameAvoidance += Direction * DistanceWeight * AngleWeight;
 
-                // 디버그 레이 (빨간색: 장애물 발견)
                 DrawDebugLine(GetWorld(), Start, Hit.ImpactPoint, FColor::Red, false, 0.1f);
             }
         }
+    }
+
+    // 2️⃣ 🌟 사각지대 방지 (메모리 로직)
+    if (bRayHit)
+    {
+        LastDetectedObstacle = CurrentHitActor; // 감지된 장애물 기억
+    }
+    else if (LastDetectedObstacle)
+    {
+        // 레이에는 안 걸리지만, 아직 장애물 옆을 지나가는 중인지 확인
+        FVector ToObstacle = LastDetectedObstacle->GetActorLocation() - Start;
+        float ForwardDist = FVector::DotProduct(ToObstacle, Forward);
+        float LateralDist = FVector::VectorPlaneProject(ToObstacle, Forward).Size();
+
+        // 장애물이 아직 내 앞에 있거나, 옆에 너무 가깝게 붙어있다면 회피 유지
+        if (ForwardDist > -500.f && LateralDist < 1000.f)
+        {
+            bRayHit = true; // 강제로 히트 상태 유지
+            // 마지막 회피 방향을 유지하도록 설정
+            CurrentFrameAvoidance = (AvoidanceForceValue > 0) ? 1.0f : -1.0f;
+            MinHitDistance = 500.f; // 즉각적인 반응을 위해 짧은 거리로 취급
+        }
         else
         {
-            // 디버그 레이 (녹색: 안전)
-            DrawDebugLine(GetWorld(), Start, End, FColor::Green, false, 0.1f);
+            LastDetectedObstacle = nullptr; // 완전히 지나침
         }
     }
 
-    // 최종 조향 보정값 적용
-    if (bHitObstacle)
-    {
-        // SteerTarget을 옆으로 강하게 밀어냄 (AvoidanceForce는 -1.0 ~ 1.0 사이 값)
-        float PushDistance = 800.f; 
-        SteerTarget += Right * AvoidanceForce * PushDistance;
-        
-        // 장애물이 너무 가까우면 감속
-        bEmergencyBrake = true; 
-    }
-    else
-    {
-        bEmergencyBrake = false;
-    }
+    // 3️⃣ 보간 및 적용 (이전 로직과 동일하지만 FinalInterpSpeed 조정)
+    float DynamicInterpSpeed = UKismetMathLibrary::MapRangeClamped(MinHitDistance, 500.f, 3000.f, 25.0f, 5.0f);
+    float FinalInterpSpeed = bRayHit ? DynamicInterpSpeed : 2.0f; // 돌아올 땐 아주 천천히
+
+    float TargetValue = bRayHit ? FMath::Clamp(CurrentFrameAvoidance, -1.0f, 1.0f) : 0.0f;
+    AvoidanceForceValue = FMath::FInterpTo(AvoidanceForceValue, TargetValue, DeltaTime, FinalInterpSpeed);
+    
+    bEmergencyBrake = bRayHit && (MinHitDistance < 1200.f);
 }

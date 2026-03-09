@@ -129,4 +129,9 @@ protected:
 	/** 현재 추월 대상으로 선정된 차량 */
 	UPROPERTY(VisibleAnywhere, Category = "AI|State")
 	AActor* VehicleInFrontActor;
+	
+private:
+	float AvoidanceForceValue = 0.0f;
+	AActor* LastDetectedObstacle = nullptr; // 마지막으로 감지한 장애물 저장
+	float ObstacleClearanceDistance = 1500.0f; // 이 거리만큼 지나쳐야 회피 종료
 };
