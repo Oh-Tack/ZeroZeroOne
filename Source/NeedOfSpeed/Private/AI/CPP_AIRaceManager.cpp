@@ -52,8 +52,8 @@ void ACPP_AIRaceManager::UpdateRaceData()
 		float Key = TargetRoad->Spline->FindInputKeyClosestToWorldLocation(Loc);
 		float NewDistance = TargetRoad->Spline->GetDistanceAlongSplineAtSplineInputKey(Key);
 
-		// 랩 체크 (루프 트랙 대응)
-		if (NewDistance < Info.PreviousDistance - 2000.f)
+		// 랩 체크
+		if (NewDistance < Info.DistanceAlongSpline - 2000.f)
 		{
 			Info.Lap++;
 		}
@@ -78,6 +78,14 @@ void ACPP_AIRaceManager::UpdateRaceData()
 		{
 			RacerTable[i].Rank = i + 1;
 		}
+	}
+	
+	// 🔹 1초마다 출력하도록 시간 체크 추가
+	float CurrentTime = GetWorld()->GetTimeSeconds();
+	if (CurrentTime - LastLogTime >= 1.0f)
+	{
+		PrintCurrentRankings();
+		LastLogTime = CurrentTime;
 	}
 }
 
@@ -116,6 +124,6 @@ void ACPP_AIRaceManager::PrintCurrentRankings()
 	UE_LOG(LogTemp, Warning, TEXT("=== CURRENT RANKINGS ==="));
 	for (const auto& Info : RacerTable)
 	{
-		UE_LOG(LogTemp, Log, TEXT("%d위: %s"), Info.Rank, *Info.Vehicle->GetActorLabel());
+		UE_LOG(LogTemp, Log, TEXT("%d위: %s | Lap: %d"), Info.Rank, *Info.Vehicle->GetActorLabel(), Info.Lap);
 	}
 }

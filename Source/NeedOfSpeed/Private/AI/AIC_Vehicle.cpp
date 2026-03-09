@@ -126,35 +126,35 @@ float AAIC_Vehicle::CalculateTopSpeed()
 	// -------------------------
 	// RubberBand (Catch-up) 시스템
 	// -------------------------
-	ACPP_AIRaceManager* Manager = ACPP_AIRaceManager::GetInstance(GetWorld());
-
-	if (Manager)
-	{
-		float MyDist = Manager->GetDistanceOfVehicle(ControllerVehicle);
-		float LeadDist = Manager->GetLeadDistance();
-
-		float Gap = LeadDist - MyDist;
-
-		// 4000 이상 벌어지면 보정 시작
-		if (Gap > 4000.f)
-		{
-			int MyRank = Manager->GetRankOfVehicle(ControllerVehicle);
-			int Total = FMath::Max(GetTotalRacers(), 2);
-
-			float DistanceAlpha = FMath::Clamp((Gap - 4000.f) / 8000.f, 0.f, 1.f);
-
-			float RankAlpha = 0.f;
-			if (Total > 1)
-			{
-				RankAlpha = (float)(MyRank - 1) / (float)(Total - 1);
-			}
-
-			// 최대 25% 속도 증가
-			float Boost = 1.0f + (DistanceAlpha * RankAlpha * 0.25f);
-
-			TargetSpeed *= Boost;
-		}
-	}
+	// ACPP_AIRaceManager* Manager = ACPP_AIRaceManager::GetInstance(GetWorld());
+	//
+	// if (Manager)
+	// {
+	// 	float MyDist = Manager->GetDistanceOfVehicle(ControllerVehicle);
+	// 	float LeadDist = Manager->GetLeadDistance();
+	//
+	// 	float Gap = LeadDist - MyDist;
+	//
+	// 	// 4000 이상 벌어지면 보정 시작
+	// 	if (Gap > 4000.f)
+	// 	{
+	// 		int MyRank = Manager->GetRankOfVehicle(ControllerVehicle);
+	// 		int Total = FMath::Max(GetTotalRacers(), 2);
+	//
+	// 		float DistanceAlpha = FMath::Clamp((Gap - 4000.f) / 8000.f, 0.f, 1.f);
+	//
+	// 		float RankAlpha = 0.f;
+	// 		if (Total > 1)
+	// 		{
+	// 			RankAlpha = (float)(MyRank - 1) / (float)(Total - 1);
+	// 		}
+	// 		
+	// 		float Headroom = CachedAIVehicle->Max_Speed - TargetSpeed;
+	// 		float BonusSpeed = Headroom * (DistanceAlpha * RankAlpha * 0.5f); // 최대 50%의 여유폭 활용
+	//
+	// 		TargetSpeed += BonusSpeed;
+	// 	}
+	// }
 
 	// -------------------------
 	// 급커브 안전 감속
