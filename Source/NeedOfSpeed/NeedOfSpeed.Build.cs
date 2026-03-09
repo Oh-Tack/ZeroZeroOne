@@ -19,7 +19,8 @@ public class NeedOfSpeed : ModuleRules
 			"Niagara",
 			"GeometryCollectionEngine",
 			"ChaosSolverEngine",
-			"FieldSystemEngine"
+			"FieldSystemEngine",
+			"Landscape"
 		});
 
 		PrivateDependencyModuleNames.AddRange(new string[] {  });

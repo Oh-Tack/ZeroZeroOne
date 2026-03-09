@@ -53,7 +53,7 @@ void ACPP_AIRaceManager::UpdateRaceData()
 		float NewDistance = TargetRoad->Spline->GetDistanceAlongSplineAtSplineInputKey(Key);
 
 		// 랩 체크
-		if (NewDistance < Info.DistanceAlongSpline - 2000.f)
+		if (Info.DistanceAlongSpline > TrackLength - 1000.f && NewDistance < 1000.f)
 		{
 			Info.Lap++;
 		}

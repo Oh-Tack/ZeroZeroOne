@@ -11,6 +11,8 @@
 
 #include "ChaosWheeledVehicleMovementComponent.h"
 #include "AIController.h"
+#include "Landscape.h"
+#include "AI/CPP_AIRaceManager.h"
 #include "UObject/ConstructorHelpers.h"
 
 
@@ -115,7 +117,7 @@ ACPP_AI_McLaren::ACPP_AI_McLaren()
 
 	RightSideBox->SetGenerateOverlapEvents(true);
 	RightSideBox->SetCollisionProfileName(TEXT("AI_Box"));
-	
+
 	FrontViewBox->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 	LeftSideBox->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 	RightSideBox->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
@@ -125,6 +127,14 @@ ACPP_AI_McLaren::ACPP_AI_McLaren()
 void ACPP_AI_McLaren::BeginPlay()
 {
 	Super::BeginPlay();
+
+	if (GetMesh())
+	{
+		GetMesh()->SetNotifyRigidBodyCollision(true);
+		GetMesh()->OnComponentHit.AddDynamic(this, &ACPP_AI_McLaren::OnVehicleHit);
+
+		UE_LOG(LogTemp, Warning, TEXT("Hit Event Bound Successfully for %s"), *GetName());
+	}
 }
 
 
@@ -187,4 +197,96 @@ FVector ACPP_AI_McLaren::GetFrontOfCar_Implementation()
 float ACPP_AI_McLaren::GetCurrentSpeed_Implementation()
 {
 	return FMath::Abs(GetVehicleMovement()->GetForwardSpeed()) * 0.036f;
+}
+
+void ACPP_AI_McLaren::OnVehicleHit(
+	UPrimitiveComponent* HitComponent,
+	AActor* OtherActor,
+	UPrimitiveComponent* OtherComp,
+	FVector NormalImpulse,
+	const FHitResult& Hit)
+{
+	if (bIsRespawning || !OtherActor || OtherActor->IsA(ALandscape::StaticClass())) return;
+
+	float ImpulseStrength = NormalImpulse.Size();
+
+	if (ImpulseStrength > 100000.f || bDestroyCar)
+	{
+		bDestroyCar = true;
+		// 충돌 감지 비활성화 (연속 Hit 방지)
+		if (GetMesh())
+		{
+			GetMesh()->SetNotifyRigidBodyCollision(false);
+		}
+
+		// 이미 리스폰 예약되어 있지 않으면 타이머 설정
+		if (!GetWorldTimerManager().IsTimerActive(RespawnTimer))
+		{
+			GetWorldTimerManager().SetTimer(
+				RespawnTimer,
+				this,
+				&ACPP_AI_McLaren::RespawnVehicle,
+				5.0f,
+				false
+			);
+		}
+	}
+}
+
+
+void ACPP_AI_McLaren::RespawnVehicle()
+{
+	if (bIsRespawning) return;
+	bIsRespawning = true;
+
+	ACPP_AIRaceManager* RaceManager = ACPP_AIRaceManager::GetInstance(GetWorld());
+	if (!RaceManager || !RoadSpline)
+	{
+		bIsRespawning = false;
+		return;
+	}
+
+	float CurrentDist = RaceManager->GetDistanceOfVehicle(this);
+	float RespawnDistance = FMath::Max(0.f, CurrentDist - 3000.f);
+
+	FVector NewLocation = RoadSpline->GetLocationAtDistanceAlongSpline(
+		RespawnDistance,
+		ESplineCoordinateSpace::World
+	);
+
+	FRotator NewRotation = RoadSpline->GetRotationAtDistanceAlongSpline(
+		RespawnDistance,
+		ESplineCoordinateSpace::World
+	);
+
+	auto* Movement = Cast<UChaosWheeledVehicleMovementComponent>(GetVehicleMovement());
+
+	if (Movement)
+	{
+		Movement->StopMovementImmediately();
+		Movement->ResetVehicleState();
+	}
+
+	// Mesh Teleport (Wheel 분리 방지)
+	if (GetMesh())
+	{
+		GetMesh()->SetWorldLocationAndRotation(
+			NewLocation,
+			NewRotation,
+			false,
+			nullptr,
+			ETeleportType::TeleportPhysics
+		);
+	}
+
+	GetWorldTimerManager().SetTimerForNextTick([this]()
+	{
+		if (GetMesh())
+		{
+			GetMesh()->SetNotifyRigidBodyCollision(true);
+		}
+
+		bIsRespawning = false;
+		bDestroyCar = false;
+	});
 }

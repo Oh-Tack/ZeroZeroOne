@@ -69,4 +69,18 @@ public:
 	
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Vehicle")
 	float Angle;
+	
+	// 충돌 처리 함수
+	UFUNCTION()
+	void OnVehicleHit(UPrimitiveComponent* HitComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);
+
+	// 리스폰 로직
+	void RespawnVehicle();
+	
+	FTimerHandle RespawnTimer;
+	
+	bool bDestroyCar = false;
+	
+protected:
+	bool bIsRespawning = false;
 };

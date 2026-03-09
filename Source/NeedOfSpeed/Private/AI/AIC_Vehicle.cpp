@@ -48,6 +48,8 @@ void AAIC_Vehicle::Tick(float DeltaTime)
 
     if (!ControllerVehicle || !CachedAIVehicle) return;
 
+	CheckForStaticObstacles(DeltaTime);
+	
     // 2️⃣ 주변 인지 로직 (우선순위: 장애물 > 추월)
     // CheckForObstacles(DeltaTime);
     HandleEmergencyEvade(DeltaTime);
@@ -371,4 +373,75 @@ int AAIC_Vehicle::GetRaceRank()
 int AAIC_Vehicle::GetTotalRacers()
 {
     return AllVehicles.Num() + 1; // 자기 자신 포함
+}
+
+void AAIC_Vehicle::CheckForStaticObstacles(float DeltaTime)
+{
+    if (!ControllerVehicle) return;
+
+    FVector Start = IUIn_isVehicle::Execute_GetFrontOfCar(ControllerVehicle);
+    FVector Forward = ControllerVehicle->GetActorForwardVector();
+    FVector Right = ControllerVehicle->GetActorRightVector();
+
+    // 레이캐스트 설정 (부채꼴 모양으로 5개 발사)
+    int32 TraceCount = 5;
+    float TraceLength = 2500.f; // 감지 거리
+    float SpreadAngle = 30.f;   // 전체 부채꼴 각도
+
+    FHitResult BestHit;
+    bool bHitObstacle = false;
+    float AvoidanceForce = 0.f;
+
+    for (int32 i = 0; i < TraceCount; i++)
+    {
+        // -15도부터 +15도까지 레이 계산
+        float Angle = -SpreadAngle / 2.0f + (SpreadAngle / (TraceCount - 1)) * i;
+        FVector TraceDir = Forward.RotateAngleAxis(Angle, FVector::UpVector);
+        FVector End = Start + (TraceDir * TraceLength);
+
+        FHitResult Hit;
+        FCollisionQueryParams Params;
+        Params.AddIgnoredActor(ControllerVehicle);
+
+        // 레이캐스트 실행
+        if (GetWorld()->LineTraceSingleByChannel(Hit, Start, End, ECC_WorldDynamic, Params))
+        {
+            // Tag_PowerPlay 태그 확인
+            if (Hit.GetActor() && Hit.GetActor()->ActorHasTag(FName("Tag_PowerPlay")))
+            {
+                bHitObstacle = true;
+                
+                // 장애물이 중앙(0도)에 가까울수록, 거리가 가까울수록 강한 회피력 발생
+                float DistanceWeight = 1.0f - (Hit.Distance / TraceLength);
+                float AngleWeight = 1.0f - (FMath::Abs(Angle) / (SpreadAngle / 2.0f));
+                
+                // 장애물이 왼쪽에 있으면 오른쪽으로(+), 오른쪽에 있으면 왼쪽으로(-) 밀어냄
+                float Direction = (Angle > 0) ? -1.0f : 1.0f; 
+                AvoidanceForce += Direction * DistanceWeight * AngleWeight;
+
+                // 디버그 레이 (빨간색: 장애물 발견)
+                DrawDebugLine(GetWorld(), Start, Hit.ImpactPoint, FColor::Red, false, 0.1f);
+            }
+        }
+        else
+        {
+            // 디버그 레이 (녹색: 안전)
+            DrawDebugLine(GetWorld(), Start, End, FColor::Green, false, 0.1f);
+        }
+    }
+
+    // 최종 조향 보정값 적용
+    if (bHitObstacle)
+    {
+        // SteerTarget을 옆으로 강하게 밀어냄 (AvoidanceForce는 -1.0 ~ 1.0 사이 값)
+        float PushDistance = 800.f; 
+        SteerTarget += Right * AvoidanceForce * PushDistance;
+        
+        // 장애물이 너무 가까우면 감속
+        bEmergencyBrake = true; 
+    }
+    else
+    {
+        bEmergencyBrake = false;
+    }
 }

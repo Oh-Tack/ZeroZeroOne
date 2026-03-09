@@ -58,6 +58,7 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Race")
 	int GetTotalRacers();
+	void CheckForStaticObstacles(float DeltaTime);
 
 protected:
 	// -------------------------
