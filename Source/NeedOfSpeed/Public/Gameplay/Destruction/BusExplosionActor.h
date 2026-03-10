@@ -47,13 +47,13 @@ public:
 	float LaunchDelay = 0.2f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Explosion|Tuning|LinearImpulse")
-	FVector LaunchDirection = FVector(0.f, 0.f, 1.f);
+	FVector LaunchDirection = FVector(-3.f, 0.f, 0.f);
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Explosion|Tuning|LinearImpulse")
-	float LinearImpulseStrength = 1600.f;
+	float LinearImpulseStrength = 1300.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Explosion|Tuning|AngularImpulse")
-	FVector AngularImpulseDegrees = FVector(-600.f, 0.f, 0.f);
+	FVector AngularImpulseDegrees = FVector(200.f, 0.f, 0.f);
 
 	UFUNCTION(BlueprintCallable, Category = "Explosion")
 	void TriggerExplosion();
