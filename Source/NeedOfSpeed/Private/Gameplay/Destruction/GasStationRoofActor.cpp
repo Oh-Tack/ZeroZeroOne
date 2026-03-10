@@ -2,6 +2,7 @@
 
 #include "Gameplay/Destruction/GasStationRoofActor.h"
 
+#include "Components/StaticMeshComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "NiagaraFunctionLibrary.h"
 #include "Field/FieldSystemComponent.h"
@@ -11,30 +12,39 @@ AGasStationRoofActor::AGasStationRoofActor()
 {
 	PrimaryActorTick.bCanEverTick = false;
 
+	RoofMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("RoofMesh"));
+	SetRootComponent(RoofMesh);
+
 	RoofGC = CreateDefaultSubobject<UGeometryCollectionComponent>(TEXT("RoofGC"));
-	SetRootComponent(RoofGC);
-	
+	RoofGC->SetupAttachment(RoofMesh);
+
+	// GC는 처음엔 비활성화
 	RoofGC->SetSimulatePhysics(false);
 	RoofGC->SetEnableGravity(false);
-	
-	// ConstructorHelpers::FClassFinder<AActor> tempDestoyer(TEXT("/Script/Engine.Blueprint'/Game/Track/Blueprints/BP_Destroyer.BP_Destroyer_C'"));
-	// if (tempDestoyer.Succeeded())
-	// {
-	// 	DestroyerActor = tempDestoyer.Class;
-	// }
+	RoofGC->SetEnableDamageFromCollision(false);
+	RoofGC->SetVisibility(false);
+	RoofGC->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 }
 
 void AGasStationRoofActor::BeginPlay()
 {
 	Super::BeginPlay();
-	
+
+	RoofMesh->SetVisibility(true);
+	RoofGC->SetVisibility(false);
 	RoofGC->SetSimulatePhysics(false);
+	RoofGC->SetEnableDamageFromCollision(false);
 }
 
 void AGasStationRoofActor::TriggerDestruction()
 {
+	// SM 숨기고 GC 활성화
+	RoofMesh->SetVisibility(false);
+	RoofGC->SetVisibility(true);
+	RoofGC->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
 	RoofGC->SetEnableGravity(true);
 	RoofGC->SetSimulatePhysics(true);
+
 	if (ExplosionParticle)
 	{
 		UGameplayStatics::SpawnEmitterAtLocation(
@@ -56,17 +66,12 @@ void AGasStationRoofActor::TriggerDestruction()
 			ParticleScale,
 			true);
 	}
-	
+
 	ApplyStrain();
 }
 
 void AGasStationRoofActor::ApplyStrain()
 {
-	// GEngine->AddOnScreenDebugMessage(-1, 10, FColor::Cyan, GetActorNameOrLabel());
-	//
-	// GetWorld()->SpawnActor<AActor>(DestroyerActor, GetActorTransform());
-	//fs->GetFieldSystemComponent()->
-	//
 	RoofGC->ApplyExternalStrain(
 		INDEX_NONE,
 		GetActorLocation(),

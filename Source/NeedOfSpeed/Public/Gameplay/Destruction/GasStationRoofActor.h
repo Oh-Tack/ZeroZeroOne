@@ -10,6 +10,7 @@
 #include "GasStationRoofActor.generated.h"
 
 class UParticleSystem;
+class UStaticMeshComponent;
 
 UCLASS()
 class NEEDOFSPEED_API AGasStationRoofActor : public AActor
@@ -24,6 +25,11 @@ protected:
 	virtual void BeginPlay() override;
 	
 public:
+	// 평소에 보이는 Static Mesh
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	TObjectPtr<UStaticMeshComponent> RoofMesh;
+
+	// 트리거 후 fracture에 사용하는 GC
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<UGeometryCollectionComponent> RoofGC;
 
