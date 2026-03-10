@@ -7,7 +7,9 @@
 #include "AI/UIn_isVehicle.h"
 #include "NiagaraComponent.h"
 #include "Components/AudioComponent.h"
+#include "GameFramework/SpringArmComponent.h"
 #include "RacingCar.generated.h"
+
 
 
 /**
@@ -86,6 +88,24 @@ protected:
 
 	UPROPERTY(EditAnywhere, Category = "Light")
 	float ActiveBrakeIntensity = 100.0f; // 브레이크 밟았을 때 밝기
+	
+	
+	// 후방 주시용 스프링 암, 카메라
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
+	class USpringArmComponent* RearSpringArm;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
+	class UCameraComponent* RearCamera;
+	
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
+	class UCameraComponent* FrontCamera;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
+	class UInputAction* IA_LookBack;
+
+	// 카메라 전환 함수
+	void StartLookBack();
+	void StopLookBack();
 	
 	virtual void Tick(float DeltaTime) override;
 	
