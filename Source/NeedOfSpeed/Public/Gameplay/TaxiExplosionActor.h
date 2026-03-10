@@ -50,7 +50,7 @@ public:
 	FVector LaunchDirection = FVector(1.f, 0.f, 1.f);
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Explosion|Tuning|LinearImpulse")
-	float LinearImpulseStrength = 700.f;
+	float LinearImpulseStrength = 1000.f;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Explosion|Tuning|AngularImpulse")
 	FVector AngularImpulseDegrees = FVector(-400.f, 0.f, 0.f);

@@ -33,7 +33,7 @@ void ATaxiExplosionActor::BeginPlay()
 {
 	Super::BeginPlay();
 	
-	APlayerController* pc = GetWorld()->GetFirstPlayerController();
+	/*APlayerController* pc = GetWorld()->GetFirstPlayerController();
 	if (pc)
 	{
 		EnableInput(pc);
@@ -42,7 +42,7 @@ void ATaxiExplosionActor::BeginPlay()
 			FInputKeyBinding& Binding = InputComponent->BindKey(EKeys::E, IE_Pressed, this, &ATaxiExplosionActor::TriggerExplosion);
 			Binding.bConsumeInput = false;
 		}
-	}
+	}*/
 }
 
 // Called every frame
@@ -131,7 +131,7 @@ void ATaxiExplosionActor::ExecuteLaunch()
 	
 	GetWorld()->GetTimerManager().SetTimerForNextTick([this]()
 	{
-		TaxiMesh->SetPhysicsLinearVelocity(LaunchDirection.GetSafeNormal() * LinearImpulseStrength);
+		TaxiMesh->SetPhysicsLinearVelocity(ComputedLaunchDirection * LinearImpulseStrength);
 		TaxiMesh->SetPhysicsAngularVelocityInDegrees(AngularImpulseDegrees);
 	});
 }
