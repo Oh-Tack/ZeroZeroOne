@@ -8,6 +8,7 @@
 #include "GasStationTriggerActor.generated.h"
 
 class AGasStationExplosionActor;
+class AGasStationRoofActor;
 
 UCLASS()
 class NEEDOFSPEED_API AGasStationTriggerActor : public AActor
@@ -32,6 +33,9 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Trigger")
 	TObjectPtr<AGasStationExplosionActor> TargetGasStation;
+	
+	/*UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Trigger")
+	TObjectPtr<AGasStationRoofActor> TargetGasStationRoof;*/
 
 private:
 	bool bTriggered = false;

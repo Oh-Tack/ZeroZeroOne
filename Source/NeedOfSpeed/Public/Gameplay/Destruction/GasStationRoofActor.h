@@ -10,6 +10,7 @@
 #include "GasStationRoofActor.generated.h"
 
 class UParticleSystem;
+class USceneComponent;
 class UStaticMeshComponent;
 
 UCLASS()
@@ -25,6 +26,9 @@ protected:
 	virtual void BeginPlay() override;
 	
 public:
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	TObjectPtr<USceneComponent> RootScene;
+	
 	// 평소에 보이는 Static Mesh
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<UStaticMeshComponent> RoofMesh;
@@ -46,10 +50,10 @@ public:
 	FVector ParticleScale = FVector(3.0f, 3.0f, 3.0f);
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Destruction")
-	float DestructionStrain = 600000.f;
+	float DestructionStrain = 510000.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Destruction")
-	float DestructionRadius = 99999.f;
+	float DestructionRadius = 1000.f;
 
 	UFUNCTION(BlueprintCallable, Category = "Destruction")
 	void TriggerDestruction();
@@ -59,6 +63,8 @@ public:
 	// TSubclassOf<AActor> DestroyerActor;
 
 private:
+	FTimerHandle StrainTimerHandle;
+	
 	UFUNCTION()
 	void ApplyStrain();
 };
