@@ -50,10 +50,14 @@ public:
 	FVector LaunchDirection = FVector(1.f, 0.f, 1.f);
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Explosion|Tuning|LinearImpulse")
-	float LinearImpulseStrength = 700.f;
+	float LinearImpulseStrength = 1000.f;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Explosion|Tuning|AngularImpulse")
 	FVector AngularImpulseDegrees = FVector(-400.f, 0.f, 0.f);
+	
+	// 켜면 LaunchDirection 무시하고 가장 가까운 AI 차 방향으로 날아감
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Explosion|Tuning|LinearImpulse")
+	bool bLaunchTowardNearestAI = true;
 	
 	UFUNCTION(BlueprintCallable, Category = "Explosion")
 	void TriggerExplosion();
@@ -62,4 +66,5 @@ private:
 	void ExecuteLaunch();
 	
 	bool bHasExploded = false;
+	FVector ComputedLaunchDirection;
 };

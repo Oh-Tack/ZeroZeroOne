@@ -33,6 +33,13 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tower|FX")
 	TObjectPtr<UNiagaraSystem> CollapseImpactFX;
 	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tower|FX")
+	TObjectPtr<UNiagaraSystem> DebrisFX;
+	
+	// 부서질 때 적용할 material
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tower|FX")
+	TObjectPtr<UMaterialInterface> FracturedMaterial;
+	
 	UFUNCTION(BlueprintCallable, Category = "Tower")
 	void StartCollapse(FVector FallDirection);
 	
@@ -57,5 +64,9 @@ private:
 
 	// fracture 때 파편을 날리는 radial impulse 강도
 	UPROPERTY(EditAnywhere, Category = "Tower|Physics", meta = (ClampMin = "0.0"))
-	float DestructionRadialStrength = 800.f;
+	float DestructionRadialStrength = 1000.f;
+	
+	// radial impulse 반경 
+	UPROPERTY(EditAnywhere, Category = "Tower|Physics", meta = (ClampMin = "0.0"))
+	float DestructionRadialRadius = 1200.f;
 };
