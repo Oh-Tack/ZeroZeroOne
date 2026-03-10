@@ -43,12 +43,6 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Components")
 	USplineComponent* RoadSpline;
 
-	// UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = "Components")
-	// USceneComponent* Sensor_L;
-	//
-	// UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = "Components")
-	// USceneComponent* Sensor_R;
-
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = "Components")
 	USceneComponent* Sensor_F;
 	
@@ -76,7 +70,28 @@ public:
 
 	// 리스폰 로직
 	void RespawnVehicle();
+	float RespawnLaneOffset = 0.f;
 	
+	// ===== Impact =====
+	float CalculateImpactScore(
+		const FVector& NormalImpulse,
+		UPrimitiveComponent* OtherComp);
+
+	void ApplyImpactSpin(
+		const FVector& NormalImpulse,
+		float ImpactScore);
+	
+	UPROPERTY(EditDefaultsOnly, Category="Effects")
+	TObjectPtr<class UNiagaraSystem> DestroyEffect;  // 파괴 이펙트
+
+	UPROPERTY(EditDefaultsOnly, Category="Effects")
+	float LaunchMultiplier = 5.f; // 충격으로 날아가는 힘 조절
+
+	void IgnoreVehicleCollision(bool bIgnore);
+
+	// ===== State =====
+	bool bCollisionDisabled = false;
+
 	FTimerHandle RespawnTimer;
 	
 	bool bDestroyCar = false;

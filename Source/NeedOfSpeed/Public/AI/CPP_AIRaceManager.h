@@ -4,27 +4,29 @@
 #include "GameFramework/Actor.h"
 #include "CPP_AIRaceManager.generated.h"
 
-USTRUCT()
+USTRUCT(BlueprintType) // 블루프린트 타입으로 만들기
 struct FRacerInfo
 {
 	GENERATED_BODY()
 
-	UPROPERTY()
+public: // 👈 반드시 public
+
+	UPROPERTY(BlueprintReadWrite)
 	AActor* Vehicle = nullptr;
 
-	UPROPERTY()
+	UPROPERTY(BlueprintReadWrite)
 	float DistanceAlongSpline = 0.f;
 
-	UPROPERTY()
+	UPROPERTY(BlueprintReadWrite)
 	float PreviousDistance = 0.f;
 
-	UPROPERTY()
+	UPROPERTY(BlueprintReadWrite)
 	int32 Lap = 0;
 
-	UPROPERTY()
+	UPROPERTY(BlueprintReadWrite)
 	int32 Rank = 0;
 
-	UPROPERTY()
+	UPROPERTY(BlueprintReadWrite)
 	float RaceProgress = 0.f;
 };
 
@@ -54,6 +56,8 @@ public:
 	
 	UPROPERTY()
 	TArray<FRacerInfo> RacerTable;
+	
+	
 
 private:
 	/** 주기적으로 순위를 갱신하는 핵심 로직 */
@@ -72,4 +76,13 @@ private:
 	AActor* GetVehicleByRank(int32 Rank);
 	
 	float LastLogTime = 0.0f;
+	
+	UPROPERTY()
+	TMap<int32, int32> RespawnSlotCounter;
+
+public:
+	int32 AcquireRespawnSlot(float Distance);
+	
+	UFUNCTION(BlueprintCallable, Category="Race")
+	FRacerInfo GetRacerInfo(AActor* Vehicle) const;
 };

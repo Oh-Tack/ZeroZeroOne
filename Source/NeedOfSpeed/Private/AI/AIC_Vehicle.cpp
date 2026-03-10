@@ -293,7 +293,6 @@ void AAIC_Vehicle::CheckForOvertakes()
     if (FrontPawn && FrontPawn->IsPlayerControlled()) BoxColor = FColor::Magenta;
 
     DrawDebugBox(GetWorld(), FrontBox->GetComponentLocation(), FrontBox->GetScaledBoxExtent(), FrontBox->GetComponentQuat(), BoxColor, false, 0.1f, 0, 2.0f);
-    DrawDebugSphere(GetWorld(), SteerTarget, 100.f, 12, FColor::Cyan, false, 0.1f);
 }
 
 void AAIC_Vehicle::HandleLaneChange(bool bVehicleInFront, const TArray<AActor*>& LeftActors, const TArray<AActor*>& RightActors)
@@ -396,63 +395,147 @@ void AAIC_Vehicle::CheckForStaticObstacles(float DeltaTime, const TArray<AAIC_Ve
 {
     if (!ControllerVehicle || !CachedAIVehicle) return;
 
-    // 🔹 1. 속도 비례 감지 거리 (Look-ahead 거리를 속도에 맞게 동적 설정)
+    // 🔹 속도 기반 감지 거리
     float CurrentSpeed = IUIn_isVehicle::Execute_GetCurrentSpeed(ControllerVehicle);
-    float TraceLength = FMath::Clamp(CurrentSpeed * 0.8f, 2000.f, 8000.f); 
-    
+    float TraceLength = FMath::Clamp(CurrentSpeed * 0.8f, 2000.f, 8000.f);
+
     FVector CarFront = IUIn_isVehicle::Execute_GetFrontOfCar(ControllerVehicle);
     FVector Start = CarFront + FVector(0.f, 0.f, 150.f);
+
     FVector Forward = ControllerVehicle->GetActorForwardVector();
     FVector Right = ControllerVehicle->GetActorRightVector();
 
-    // 🔹 2. SphereTrace를 사용한 틈새 방지 (반경 50cm의 구체 활용)
+    // =====================================================
+    // ✅ 커브 대응 Ray 방향 (도로 진행 방향 사용)
+    // =====================================================
+    FVector RoadForward = Forward;
+
+    if (Road && Road->Spline)
+    {
+        FVector AheadPos;
+        Road->GetClosestLocationToPath_Implementation(
+            CarFront,
+            1200.f,                 // 약간 앞 위치
+            CurrentSideOfRoad,
+            AheadPos
+        );
+
+        RoadForward = (AheadPos - CarFront).GetSafeNormal();
+    }
+
+    // 차량 방향 + 도로 방향 혼합
+    float CurveAssist = 0.7f; // (0.6~0.8 추천)
+    FVector BlendedForward =
+        FMath::Lerp(Forward, RoadForward, CurveAssist).GetSafeNormal();
+    // =====================================================
+
     float SphereRadius = 50.f;
-    const int32 TraceCount = 5; // 레이 개수를 줄여도 SphereTrace가 더 넓게 커버함
+    const int32 TraceCount = 5;
     const float SpreadAngle = 40.f;
 
     bool bRayHit = false;
-    float HitDirection = 0.f; // -1(좌), 1(우)
     float MinHitDistance = TraceLength;
     AActor* CurrentHitActor = nullptr;
 
     FCollisionQueryParams Params;
     Params.AddIgnoredActor(ControllerVehicle);
-    for (AAIC_Vehicle* OtherAI : AllAIVehicles)
-        if (OtherAI && OtherAI->ControllerVehicle) Params.AddIgnoredActor(OtherAI->ControllerVehicle);
 
-    // 🔹 3. 다중 SphereTrace 및 회피값 가중치 처리
+    for (AAIC_Vehicle* OtherAI : AllAIVehicles)
+        if (OtherAI && OtherAI->ControllerVehicle)
+            Params.AddIgnoredActor(OtherAI->ControllerVehicle);
+
     float AccumulatedAvoidance = 0.f;
     int32 HitCount = 0;
 
+    // =====================================================
+    // 🔹 커브 방향 기반 Sphere Trace
+    // =====================================================
     for (int32 i = 0; i < TraceCount; i++)
     {
-        float Angle = -SpreadAngle / 2.0f + (SpreadAngle / (TraceCount - 1)) * i;
-        FVector TraceDir = Forward.RotateAngleAxis(Angle, FVector::UpVector);
+        float Angle = -SpreadAngle / 2.0f +
+            (SpreadAngle / (TraceCount - 1)) * i;
+
+        // ⭐ Forward 대신 BlendedForward 사용
+        FVector TraceDir =
+            BlendedForward.RotateAngleAxis(Angle, FVector::UpVector);
+
         FVector End = Start + TraceDir * TraceLength;
 
         FHitResult Hit;
-        bool bHit = GetWorld()->SweepSingleByChannel(Hit, Start, End, FQuat::Identity, ECC_WorldStatic, FCollisionShape::MakeSphere(SphereRadius), Params);
-        
-        if (bHit && Hit.GetActor()->ActorHasTag(FName("Tag_PowerPlay")))
+        bool bHit = GetWorld()->SweepSingleByChannel(
+            Hit,
+            Start,
+            End,
+            FQuat::Identity,
+            ECC_WorldStatic,
+            FCollisionShape::MakeSphere(SphereRadius),
+            Params
+        );
+
+        if (bHit && Hit.GetActor()->ActorHasTag(FName("Powerplay")))
         {
             bRayHit = true;
             MinHitDistance = FMath::Min(MinHitDistance, Hit.Distance);
             CurrentHitActor = Hit.GetActor();
 
-            float SideDot = FVector::DotProduct(Hit.ImpactPoint - Start, Right);
+            float SideDot =
+                FVector::DotProduct(Hit.ImpactPoint - Start, Right);
+
+            // 오른쪽 맞으면 왼쪽 회피
+            // 왼쪽 맞으면 오른쪽 회피
             AccumulatedAvoidance += (SideDot >= 0.f) ? -1.f : 1.f;
             HitCount++;
         }
+
+#if WITH_EDITOR
+        DrawDebugLine(GetWorld(), Start, End,
+            bHit ? FColor::Red : FColor::Green,
+            false, 0.05f, 0, 1.5f);
+#endif
     }
 
-    // 🔹 4. 진동 방지: 이전 프레임의 회피값과 혼합 (가중 이동 평균)
-    float TargetAvoidance = (HitCount > 0) ? (AccumulatedAvoidance / HitCount) : 0.f;
-    
-    // Smoothness 설정: 회피 방향이 갑자기 바뀌지 않도록 보간
-    float InterpSpeed = bRayHit ? 10.f : 5.f; 
-    AvoidanceForceValue = FMath::FInterpTo(AvoidanceForceValue, TargetAvoidance, DeltaTime, InterpSpeed);
+    // =====================================================
+    // 🔹 평균 회피 방향
+    // =====================================================
+    float TargetAvoidance =
+        (HitCount > 0) ? (AccumulatedAvoidance / HitCount) : 0.f;
 
-    // 🔹 5. 비상 브레이크 및 쿨다운
+    // =====================================================
+    // ✅ 차선 기반 중앙 복귀 Bias (좌우 모두)
+    // =====================================================
+    if (HitCount > 0)
+    {
+        const float LaneBiasStrength = 0.35f;
+
+        if (CurrentSideOfRoad > 0.5f)
+        {
+            // 오른차선 → 중앙(왼쪽)
+            TargetAvoidance -= LaneBiasStrength;
+        }
+        else
+        {
+            // 왼쪽차선 → 중앙(오른쪽)
+            TargetAvoidance += LaneBiasStrength;
+        }
+    }
+
+    TargetAvoidance = FMath::Clamp(TargetAvoidance, -1.0f, 1.0f);
+
+    // =====================================================
+    // 🔹 회피값 스무딩
+    // =====================================================
+    float InterpSpeed = bRayHit ? 10.f : 5.f;
+
+    AvoidanceForceValue = FMath::FInterpTo(
+        AvoidanceForceValue,
+        TargetAvoidance,
+        DeltaTime,
+        InterpSpeed
+    );
+
+    // =====================================================
+    // 🔹 쿨다운 유지
+    // =====================================================
     if (bRayHit)
     {
         LastDetectedObstacle = CurrentHitActor;
@@ -461,13 +544,25 @@ void AAIC_Vehicle::CheckForStaticObstacles(float DeltaTime, const TArray<AAIC_Ve
     else if (AvoidanceCooldown > 0.f && IsValid(LastDetectedObstacle))
     {
         AvoidanceCooldown -= DeltaTime;
-        // 장애물이 아직 전방에 있는 경우 쿨다운 동안 회피 유지
-        bRayHit = true; 
+        bRayHit = true;
     }
 
-    float SafeDistance = FMath::Max(1500.f, CurrentSpeed * 0.6f);
-    bEmergencyBrake = bRayHit && (MinHitDistance < SafeDistance);
+    float SafeDistance =
+        FMath::Max(1500.f, CurrentSpeed * 0.6f);
 
-    // Debug 시각화 (개선된 방식)
-    if (bRayHit) DrawDebugSphere(GetWorld(), Start + Forward * MinHitDistance, SphereRadius, 8, FColor::Red, false, 0.2f);
+    bEmergencyBrake =
+        bRayHit && (MinHitDistance < SafeDistance);
+
+    if (bRayHit)
+    {
+        DrawDebugSphere(
+            GetWorld(),
+            Start + BlendedForward * MinHitDistance,
+            SphereRadius,
+            8,
+            FColor::Red,
+            false,
+            0.2f
+        );
+    }
 }

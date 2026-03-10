@@ -87,6 +87,11 @@ void ACPP_AIRaceManager::UpdateRaceData()
 		PrintCurrentRankings();
 		LastLogTime = CurrentTime;
 	}
+	
+	if (RespawnSlotCounter.Num() > 50)
+	{
+		RespawnSlotCounter.Empty();
+	}
 }
 
 AActor* ACPP_AIRaceManager::GetVehicleByRank(int32 Rank)
@@ -99,6 +104,30 @@ AActor* ACPP_AIRaceManager::GetVehicleByRank(int32 Rank)
 		}
 	}
 	return nullptr;
+}
+
+int32 ACPP_AIRaceManager::AcquireRespawnSlot(float Distance)
+{
+	// 500cm 단위로 구간 나누기
+	int32 Bucket = FMath::FloorToInt(Distance / 500.f);
+
+	// 해당 구간 슬롯 카운터
+	int32& Counter = RespawnSlotCounter.FindOrAdd(Bucket);
+
+	int32 SlotIndex = Counter;
+	Counter++;
+
+	return SlotIndex;
+}
+
+FRacerInfo ACPP_AIRaceManager::GetRacerInfo(AActor* Vehicle) const
+{
+	for (const FRacerInfo& Info : RacerTable)
+	{
+		if (Info.Vehicle == Vehicle)
+			return Info;
+	}
+	return FRacerInfo(); // 못 찾으면 기본값
 }
 
 int32 ACPP_AIRaceManager::GetRankOfVehicle(AActor* Vehicle)

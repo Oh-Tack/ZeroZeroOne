@@ -12,7 +12,9 @@
 #include "ChaosWheeledVehicleMovementComponent.h"
 #include "AIController.h"
 #include "Landscape.h"
+#include "NiagaraFunctionLibrary.h"
 #include "AI/CPP_AIRaceManager.h"
+#include "Kismet/GameplayStatics.h"
 #include "UObject/ConstructorHelpers.h"
 
 
@@ -131,10 +133,15 @@ void ACPP_AI_McLaren::BeginPlay()
 	if (GetMesh())
 	{
 		GetMesh()->SetNotifyRigidBodyCollision(true);
+		GetMesh()->BodyInstance.bUseCCD = true; // 고속 충돌 안정화
 		GetMesh()->OnComponentHit.AddDynamic(this, &ACPP_AI_McLaren::OnVehicleHit);
 
 		UE_LOG(LogTemp, Warning, TEXT("Hit Event Bound Successfully for %s"), *GetName());
 	}
+
+	// ⭐ 차량마다 다른 차선 배정
+	int32 LaneIndex = FMath::RandRange(-1, 1);
+	RespawnLaneOffset = LaneIndex * 350.f;
 }
 
 
@@ -206,31 +213,45 @@ void ACPP_AI_McLaren::OnVehicleHit(
 	FVector NormalImpulse,
 	const FHitResult& Hit)
 {
-	if (bIsRespawning || !OtherActor || OtherActor->IsA(ALandscape::StaticClass())) return;
+	if (bIsRespawning || bDestroyCar) return;
+	if (!OtherActor || OtherActor == this) return;
+	if (OtherActor->IsA(ALandscape::StaticClass())) return;
 
-	float ImpulseStrength = NormalImpulse.Size();
+	float ImpactScore = CalculateImpactScore(NormalImpulse, OtherComp);
+	if (ImpactScore < 50.f) return;
 
-	if (ImpulseStrength > 500000.f || bDestroyCar)
+	bDestroyCar = true;
+
+	// 1️⃣ 파괴 이펙트 Spawn
+	if (DestroyEffect)
 	{
-		bDestroyCar = true;
-		// 충돌 감지 비활성화 (연속 Hit 방지)
-		if (GetMesh())
-		{
-			GetMesh()->SetNotifyRigidBodyCollision(false);
-		}
-
-		// 이미 리스폰 예약되어 있지 않으면 타이머 설정
-		if (!GetWorldTimerManager().IsTimerActive(RespawnTimer))
-		{
-			GetWorldTimerManager().SetTimer(
-				RespawnTimer,
-				this,
-				&ACPP_AI_McLaren::RespawnVehicle,
-				5.0f,
-				false
-			);
-		}
+		UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+			GetWorld(),
+			DestroyEffect,
+			OtherActor->GetActorLocation()
+		);
 	}
+
+	// 2️⃣ 차량 날라가기
+	if (UPrimitiveComponent* MeshComp = GetMesh())
+	{
+		MeshComp->SetSimulatePhysics(true); // Physics 활성화
+		FVector Launch = NormalImpulse.GetSafeNormal() * ImpactScore * LaunchMultiplier;
+		MeshComp->AddImpulse(Launch, NAME_None, true);
+	}
+
+	// 3️⃣ 충돌 무시 및 멈춤
+	IgnoreVehicleCollision(true);
+	GetMesh()->SetNotifyRigidBodyCollision(false);
+
+	// 4️⃣ 일정 시간 후 리스폰
+	GetWorldTimerManager().SetTimer(
+		RespawnTimer,
+		this,
+		&ACPP_AI_McLaren::RespawnVehicle,
+		5.f,
+		false
+	);
 }
 
 
@@ -239,54 +260,136 @@ void ACPP_AI_McLaren::RespawnVehicle()
 	if (bIsRespawning) return;
 	bIsRespawning = true;
 
-	ACPP_AIRaceManager* RaceManager = ACPP_AIRaceManager::GetInstance(GetWorld());
+	auto* RaceManager =
+		ACPP_AIRaceManager::GetInstance(GetWorld());
+
 	if (!RaceManager || !RoadSpline)
 	{
 		bIsRespawning = false;
 		return;
 	}
 
-	float CurrentDist = RaceManager->GetDistanceOfVehicle(this);
-	float RespawnDistance = FMath::Max(0.f, CurrentDist - 3000.f);
+	float CurrentDist =
+		RaceManager->GetDistanceOfVehicle(this);
 
-	FVector NewLocation = RoadSpline->GetLocationAtDistanceAlongSpline(
-		RespawnDistance,
-		ESplineCoordinateSpace::World
-	);
+	float RespawnDistance =
+		FMath::Max(0.f, CurrentDist - 3000.f);
 
-	FRotator NewRotation = RoadSpline->GetRotationAtDistanceAlongSpline(
-		RespawnDistance,
-		ESplineCoordinateSpace::World
-	);
+	// ⭐ 슬롯 확보 (겹침 방지 핵심)
+	int32 SlotIndex =
+		RaceManager->AcquireRespawnSlot(RespawnDistance);
 
-	auto* Movement = Cast<UChaosWheeledVehicleMovementComponent>(GetVehicleMovement());
+	// ---------------- SLOT GRID ----------------
+	// ---------------- SLOT GRID (2 LANE ROAD) ----------------
 
-	if (Movement)
+	const float LaneWidth = 500.f; // 도로 끝 위치
+	const float RowSpacing = 900.f; // 앞뒤 간격
+
+	int32 Lane = SlotIndex % 2; // ⭐ 2차선
+	int32 Row = SlotIndex / 2;
+
+	// 좌(-1) / 우(+1)
+	float LaneSide = (Lane == 0) ? -1.f : 1.f;
+
+	float LaneOffset = LaneSide * LaneWidth;
+	float BackOffset = Row * RowSpacing;
+
+	// 뒤로 배치 + 안전 여유
+	RespawnDistance =
+		FMath::Max(0.f, RespawnDistance - BackOffset - 200.f);
+
+	FVector BaseLocation =
+		RoadSpline->GetLocationAtDistanceAlongSpline(
+			RespawnDistance,
+			ESplineCoordinateSpace::World);
+
+	FVector RightVector =
+		RoadSpline->GetRightVectorAtDistanceAlongSpline(
+			RespawnDistance,
+			ESplineCoordinateSpace::World);
+
+	FRotator NewRotation =
+		RoadSpline->GetRotationAtDistanceAlongSpline(
+			RespawnDistance,
+			ESplineCoordinateSpace::World);
+
+	FVector NewLocation =
+		BaseLocation + RightVector * LaneOffset;
+
+	NewLocation.Z += 20.f;
+
+	// reset vehicle
+	if (auto* Move =
+		Cast<UChaosWheeledVehicleMovementComponent>(GetVehicleMovement()))
 	{
-		Movement->StopMovementImmediately();
-		Movement->ResetVehicleState();
+		Move->StopMovementImmediately();
+		Move->ResetVehicleState();
 	}
 
-	// Mesh Teleport (Wheel 분리 방지)
-	if (GetMesh())
-	{
-		GetMesh()->SetWorldLocationAndRotation(
-			NewLocation,
-			NewRotation,
-			false,
-			nullptr,
-			ETeleportType::TeleportPhysics
-		);
-	}
+	GetMesh()->SetWorldLocationAndRotation(
+		NewLocation,
+		NewRotation,
+		false,
+		nullptr,
+		ETeleportType::TeleportPhysics);
 
+	// restore
 	GetWorldTimerManager().SetTimerForNextTick([this]()
 	{
-		if (GetMesh())
-		{
-			GetMesh()->SetNotifyRigidBodyCollision(true);
-		}
+		GetMesh()->SetNotifyRigidBodyCollision(true);
+		IgnoreVehicleCollision(false);
 
 		bIsRespawning = false;
 		bDestroyCar = false;
 	});
+}
+
+float ACPP_AI_McLaren::CalculateImpactScore(
+	const FVector& NormalImpulse,
+	UPrimitiveComponent* OtherComp)
+{
+	float ImpulseStrength = NormalImpulse.Size();
+
+	FVector MyVel = GetMesh()->GetComponentVelocity();
+	FVector OtherVel =
+		OtherComp
+			? OtherComp->GetComponentVelocity()
+			: FVector::ZeroVector;
+
+	float ImpactSpeed = (MyVel - OtherVel).Size();
+
+	float ForwardDot =
+		FVector::DotProduct(
+			NormalImpulse.GetSafeNormal(),
+			GetActorForwardVector());
+
+	float DirMul =
+		FMath::Lerp(1.f, 1.8f, FMath::Abs(ForwardDot));
+
+	return ((ImpulseStrength * 0.00001f)
+		+ (ImpactSpeed * 0.015f)) * DirMul;
+}
+
+void ACPP_AI_McLaren::ApplyImpactSpin(
+	const FVector& NormalImpulse,
+	float ImpactScore)
+{
+	float SideDot =
+		FVector::DotProduct(
+			NormalImpulse.GetSafeNormal(),
+			GetActorRightVector());
+
+	float SpinDir = (SideDot > 0) ? 1.f : -1.f;
+
+	FVector Torque(0, 0,
+	               SpinDir * ImpactScore * 50000.f);
+
+	GetMesh()->AddTorqueInRadians(Torque, NAME_None, true);
+}
+
+void ACPP_AI_McLaren::IgnoreVehicleCollision(bool bIgnore)
+{
+	GetMesh()->SetCollisionResponseToChannel(
+		ECC_Vehicle,
+		bIgnore ? ECR_Ignore : ECR_Block);
 }
