@@ -16,6 +16,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "Components/SplineComponent.h"
 #include "EngineUtils.h"
+#include "Components/AudioComponent.h"
 
 
 ARacingCar::ARacingCar()
@@ -39,6 +40,18 @@ ARacingCar::ARacingCar()
 	BoostAudio = CreateDefaultSubobject<UAudioComponent>(TEXT("BoostAudio"));
 	BoostAudio->SetupAttachment(GetMesh());
 	BoostAudio->SetAutoActivate(false);
+	
+	// 4. 드리프트 효과음
+	DriftAudio = CreateDefaultSubobject<UAudioComponent>(TEXT("DriftAudio"));
+	DriftAudio->SetupAttachment(GetMesh());
+	DriftAudio->SetAutoActivate(false); // 시작할 땐 소리 끄기
+	
+	// 엔진 오디오 생성 및 부착 
+	EngineAudio = CreateDefaultSubobject<UAudioComponent>(TEXT("EngineAudio"));
+	EngineAudio->SetupAttachment(GetMesh());
+    
+	// 엔진은 시동이 걸려있어야 하니 true로 설정
+	EngineAudio->SetAutoActivate(true);
 }
 
 void ARacingCar::BeginPlay()
@@ -258,9 +271,27 @@ void ARacingCar::Tick(float DeltaTime)
     
     // 카메라 컨트롤러 가져오기
     APlayerController* PC = Cast<APlayerController>(GetController());
+	
+	if (EngineAudio)
+	{
+		// 1. 현재 차의 속도를 구합니다.
+		float CurrentSpeed = GetVelocity().Size(); 
+
+		// 2. 속도에 맞춰 소리 높낮이(Pitch)를 계산합니다.
+		// 속도가 0일 때 Pitch는 0.8 (낮은 구르릉 소리)
+		// 속도가 3000(예상 최고속도)일 때 Pitch는 2.0 (높은 우아앙 소리)
+		FVector2D SpeedRange(0.0f, 3000.0f); // 맵핑할 속도 구간
+		FVector2D PitchRange(0.8f, 2.0f);    // 맵핑할 음정 구간
+        
+		// 언리얼 수학 함수: 현재 속도를 위 구간에 맞춰 변환해줌!
+		float TargetPitch = FMath::GetMappedRangeValueClamped(SpeedRange, PitchRange, CurrentSpeed);
+
+		// 3. 계산된 Pitch를 오디오에 적용
+		EngineAudio->SetPitchMultiplier(TargetPitch);
+	}
 
  
-    // [추가] 고속 주행 카메라 쉐이크
+    // 고속 주행 카메라 쉐이크
     
     if (CurrSpeed > 2500.0f) // 고속 기준 (필요에 따라 조절)
     {
@@ -279,12 +310,69 @@ void ARacingCar::Tick(float DeltaTime)
         }
     }
 
-    
+	if (bIsBoosting)
+	{
+		// 부스트 소리 켜기
+		if (BoostAudio && !BoostAudio->IsPlaying()) BoostAudio->Play();
+
+		// (나머지 부스트 가속 및 카메라 쉐이크 로직 유지)
+	}
+	else
+	{
+		// 부스트 끝나면 소리 끄기
+		if (BoostAudio && BoostAudio->IsPlaying()) BoostAudio->Stop();
+	}
+	
+	float CosAngle = FVector::DotProduct(velocity.GetSafeNormal(), Forward);
+	if (bISDrifting)
+	{
+		// 연기 뿜기 시작!
+		if (DriftSmokeLeft && !DriftSmokeLeft->IsActive()) DriftSmokeLeft->Activate();
+		if (DriftSmokeRight && !DriftSmokeRight->IsActive()) DriftSmokeRight->Activate();
+		if (DriftAudio)
+		{
+			if (!DriftAudio->IsPlaying()) 
+			{
+				DriftAudio->Play();
+			}
+
+			// [핵심] 미끄러짐 강도 계산
+			// 단순히 켜고 끄는 게 아니라, 현재 속도와 드리프트 각도(CosAngle)를 이용해 강도를 계산합니다.
+			// CosAngle이 작을수록(옆으로 더 많이 꺾일수록) 소리가 커지게 설정합니다.
+			float SlipIntensity = FMath::GetMappedRangeValueClamped(FVector2D(0.7f, 0.95f), FVector2D(1.2f, 0.0f), CosAngle);
+			float NormalizedSpeed = FMath::Clamp(CurrSpeed / 3000.0f, 0.5f, 1.5f);
+            
+			// 최종 강도 (속도와 미끄러짐의 조합)
+			float FinalSkidPower = SlipIntensity * NormalizedSpeed;
+
+			// 방법 A: 메타사운드를 사용 중일 때 (파라미터 전달)
+			DriftAudio->SetFloatParameter(SkidIntensityParam, FinalSkidPower);
+
+			// 방법 B: 사운드 큐나 일반 웨이브를 사용할 때 (C++에서 직접 제어)
+			// 반복 재생이 티 나지 않도록 피치를 계속 흔들어줍니다.
+			float DynamicPitch = 0.9f + (FinalSkidPower * 0.4f); // 강도에 따라 피치 변화
+			DriftAudio->SetPitchMultiplier(DynamicPitch);
+			DriftAudio->SetVolumeMultiplier(FMath::Min(FinalSkidPower, 1.0f));
+		}
+
+		// (나머지 감속 및 카운터 스티어링 로직 유지)
+	}
+	else
+	{
+		// 드리프트가 끝나거나 직진 중이면 연기 끄기
+		if (DriftSmokeLeft && DriftSmokeLeft->IsActive()) DriftSmokeLeft->Deactivate();
+		if (DriftSmokeRight && DriftSmokeRight->IsActive()) DriftSmokeRight->Deactivate();
+		if (DriftAudio && DriftAudio->IsPlaying())
+		{
+			DriftAudio->FadeOut(0.2f, 0.0f); // 0.2초 동안 서서히 꺼짐
+		}
+	}
+	
+	
     // 1. 게이지 소모 및 부스트 로직
     
     if (bIsBoosting)
     {
-    	
 
         // 부스트 쉐이크 켜기
         if (BoostShakeClass && !ActiveBoostShake && PC && PC->PlayerCameraManager)
@@ -323,7 +411,7 @@ void ARacingCar::Tick(float DeltaTime)
     
     if (bDriftKeyPressed && CurrSpeed > 500.0f)
     {
-        float CosAngle = FVector::DotProduct(velocity.GetSafeNormal(), Forward);
+       
         float Threshold = bISDrifting ? 0.98f : 0.94f;
         
         FVector AngularVel = GetMesh()->GetPhysicsAngularVelocityInDegrees();

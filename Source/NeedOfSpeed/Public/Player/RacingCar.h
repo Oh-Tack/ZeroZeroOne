@@ -135,6 +135,12 @@ protected:
 	
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Effects")
 	class UAudioComponent* BoostAudio;
+	
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Effects")
+	class UAudioComponent* DriftAudio;
+	
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Effects")
+	class UAudioComponent* EngineAudio;
     
 	// 입력 처리 함수 
 	void Throttle(const struct FInputActionValue& Value);
@@ -146,6 +152,8 @@ protected:
 	// 드리프트 탈출 부스터 함수
 	void ApplyExitBoost();
 	
+private:
+	const FName SkidIntensityParam = FName(TEXT("SkidIntensity"));
 
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 	
