@@ -8,6 +8,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "NiagaraFunctionLibrary.h"
 #include "Particles/ParticleSystem.h"
+#include "AI/CPP_AI_McLaren.h"
 
 // Sets default values
 ATaxiExplosionActor::ATaxiExplosionActor()
@@ -32,13 +33,14 @@ void ATaxiExplosionActor::BeginPlay()
 {
 	Super::BeginPlay();
 	
-	APlayerController* PC = GetWorld()->GetFirstPlayerController();
-	if (PC)
+	APlayerController* pc = GetWorld()->GetFirstPlayerController();
+	if (pc)
 	{
-		EnableInput(PC);
+		EnableInput(pc);
 		if (InputComponent)
 		{
-			InputComponent->BindKey(EKeys::E, IE_Pressed, this, &ATaxiExplosionActor::TriggerExplosion);
+			FInputKeyBinding& Binding = InputComponent->BindKey(EKeys::E, IE_Pressed, this, &ATaxiExplosionActor::TriggerExplosion);
+			Binding.bConsumeInput = false;
 		}
 	}
 }
@@ -55,6 +57,40 @@ void ATaxiExplosionActor::TriggerExplosion()
 	if (bHasExploded) return;
 	bHasExploded = true;
 	
+	// 가장 가까운 AI 차 방향으로 발사 방향 계산
+	if (bLaunchTowardNearestAI)
+	{
+		TArray<AActor*> AIActors;
+		UGameplayStatics::GetAllActorsOfClass(GetWorld(), ACPP_AI_McLaren::StaticClass(), AIActors);
+
+		AActor* NearestAI = nullptr;
+		float NearestDist = FLT_MAX;
+		for (AActor* Actor : AIActors)
+		{
+			const float Dist = FVector::Dist(GetActorLocation(), Actor->GetActorLocation());
+			if (Dist < NearestDist)
+			{
+				NearestDist = Dist;
+				NearestAI = Actor;
+			}
+		}
+
+		if (IsValid(NearestAI))
+		{
+			const FVector ToAI = (NearestAI->GetActorLocation() - GetActorLocation()).GetSafeNormal();
+			ComputedLaunchDirection = FVector(ToAI.X, ToAI.Y, 0.5f).GetSafeNormal();
+		}
+		else
+		{
+			ComputedLaunchDirection = LaunchDirection.GetSafeNormal();
+		}
+	}
+	else
+	{
+		ComputedLaunchDirection = LaunchDirection.GetSafeNormal();
+	}
+	
+	// 이펙트
 	if (ExplosionParticle)
 	{
 		UGameplayStatics::SpawnEmitterAttached(
