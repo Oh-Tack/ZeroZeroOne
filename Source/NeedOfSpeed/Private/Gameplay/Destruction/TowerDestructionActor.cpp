@@ -80,6 +80,30 @@ void ATowerDestructionActor::Tick(float DeltaTime)
 
 void ATowerDestructionActor::TriggerGroundFracture()
 {
+	// 바닥 충돌 이펙트
+	if (IsValid(CollapseImpactFX))
+	{
+		UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+			GetWorld(), CollapseImpactFX,
+			GCComp->GetComponentLocation()
+		);
+	}
+
+	// 돌멩이 파편 이펙트
+	if (IsValid(DebrisFX))
+	{
+		UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+			GetWorld(), DebrisFX,
+			GCComp->GetComponentLocation()
+		);
+	}
+
+	// 부서질 때 재질 변경
+	if (IsValid(FracturedMaterial))
+	{
+		GCComp->SetMaterial(0, FracturedMaterial);
+	}
+	
 	// 물리 + 파괴 활성화
 	GCComp->SetEnableGravity(true);
 	GCComp->SetEnableDamageFromCollision(true);
@@ -88,7 +112,7 @@ void ATowerDestructionActor::TriggerGroundFracture()
 	// 파편 날리는 radial impulse (bVelChange=true: 질량 무관하게 속도 직접 적용)
 	GCComp->AddRadialImpulse(
 		GCComp->GetComponentLocation(),
-		800.f,
+		DestructionRadialRadius,
 		DestructionRadialStrength,
 		ERadialImpulseFalloff::RIF_Linear,
 		true
