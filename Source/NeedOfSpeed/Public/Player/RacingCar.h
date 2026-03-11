@@ -103,6 +103,19 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
 	class UInputAction* IA_LookBack;
 	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crash")
+	class UNiagaraSystem* DestroyEffect;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crash")
+	class USoundBase* DestroySound;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crash")
+	float LaunchMultiplier = 1.0f;
+
+	bool bIsRespawning = false;
+	bool bDestroyCar = false;
+	FTimerHandle RespawnTimer;
+	
 
 	// 카메라 전환 함수
 	void StartLookBack();
@@ -172,6 +185,15 @@ protected:
 	// void DriftingPhysics(bool bIsDrfting);
 	// 드리프트 탈출 부스터 함수
 	void ApplyExitBoost();
+	
+	// 충돌 및 리스폰 함수들
+	UFUNCTION()
+	void OnVehicleHit(UPrimitiveComponent* HitComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);
+
+	void RespawnVehicle();
+	float CalculateImpactScore(const FVector& NormalImpulse, UPrimitiveComponent* OtherComp);
+	void ApplyImpactSpin(const FVector& NormalImpulse, float ImpactScore);
+	void IgnoreVehicleCollision(bool bIgnore);
 	
 private:
 	const FName SkidIntensityParam = FName(TEXT("SkidIntensity"));
