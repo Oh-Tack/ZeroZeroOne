@@ -43,9 +43,15 @@ void ATowerDestructionActor::StartCollapse(FVector FallDirection)
 	
 	if (IsValid(ExplosionFX))
 	{
+		const FBoxSphereBounds Bounds = GCComp->CalcBounds(GCComp->GetComponentTransform());
+		const float ForwardExtent = FMath::Abs(FVector::DotProduct(Bounds.BoxExtent, GetActorForwardVector()));
+		const FVector FrontLocation = GCComp->GetComponentLocation() - GetActorForwardVector() * ForwardExtent - GetActorRightVector() * ExplosionLeftOffset;
+		// const FVector FrontLocation = GCComp->GetComponentLocation() - GetActorForwardVector() * ForwardExtent;
+		
 		UNiagaraFunctionLibrary::SpawnSystemAtLocation(
 			GetWorld(), ExplosionFX,
-			GCComp->GetComponentLocation()
+			FrontLocation
+			//GCComp->GetComponentLocation()
 		);
 	}
 	

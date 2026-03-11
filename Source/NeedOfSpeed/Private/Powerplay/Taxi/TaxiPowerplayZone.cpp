@@ -16,5 +16,7 @@ void ATaxiPowerplayZone::OnPowerplayTriggered()
 	if (CurrentTaxiIndex < Taxis.Num())
 	{
 		bTriggered = false;
+		FTimerHandle IconReshowHandle;
+		GetWorld()->GetTimerManager().SetTimer(IconReshowHandle, this, &ATaxiPowerplayZone::ShowIconWidget, 0.5f, false);
 	}
 }

@@ -35,13 +35,20 @@ public:
 	TObjectPtr<ASatelliteSignActor> SignActor;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Collapse|Pole")
-	FVector FallDirection = FVector(1.f, 0.f, 0.f);
+	FVector FallDirection = FVector(0.f, -1.f, 0.f);
 
+	// 각가속도 (degrees/sec²), 클수록 빨리 쓰러짐
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Collapse|Pole")
-	float ImpulseStrength = 300.f;
+	float CollapseAngularAcceleration = 30.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Collapse|Sign")
 	float SignReleaseDelay = 0.3f;
+	
+	/*UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Collapse|Pole")
+	float ImpulseStrength = 300.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Collapse|Sign")
+	float SignReleaseDelay = 0.3f;*/
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Collapse|Effects")
 	TObjectPtr<UNiagaraSystem> CollapseNiagara;
@@ -54,4 +61,10 @@ public:
 
 private:
 	bool bHasCollapsed = false;
+	bool bIsCollapsing = false;
+
+	FVector CollapseBasePoint;
+	FVector CollapseAxis;
+	float CollapseSpeed = 0.f;
+	float CurrentCollapseAngle = 0.f;
 };

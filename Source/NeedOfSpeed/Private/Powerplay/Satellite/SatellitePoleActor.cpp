@@ -8,8 +8,8 @@
 // Sets default values
 ASatellitePoleActor::ASatellitePoleActor()
 {
- 	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
-	PrimaryActorTick.bCanEverTick = false;
+	PrimaryActorTick.bCanEverTick = true;
+	PrimaryActorTick.bStartWithTickEnabled = false;
 
 	PoleMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("PoleMesh"));
 	SetRootComponent(PoleMesh);
@@ -23,7 +23,11 @@ ASatellitePoleActor::ASatellitePoleActor()
 void ASatellitePoleActor::BeginPlay()
 {
 	Super::BeginPlay();
-	
+
+	// 폴 바닥을 회전 피벗으로 저장
+	const FBoxSphereBounds Bounds = PoleMesh->CalcBounds(PoleMesh->GetComponentTransform());
+	CollapseBasePoint = GetActorLocation();
+	CollapseBasePoint.Z = Bounds.Origin.Z - Bounds.BoxExtent.Z;
 }
 
 // Called every frame
@@ -31,6 +35,32 @@ void ASatellitePoleActor::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
+	if (!bIsCollapsing) return;
+
+	CollapseSpeed += CollapseAngularAcceleration * DeltaTime;
+	const float DeltaAngle = CollapseSpeed * DeltaTime;
+	CurrentCollapseAngle += DeltaAngle;
+
+	const FQuat DeltaRot(CollapseAxis, FMath::DegreesToRadians(DeltaAngle));
+	const FVector NewPos = CollapseBasePoint + DeltaRot.RotateVector(GetActorLocation() - CollapseBasePoint);
+	const FQuat NewRot = DeltaRot * GetActorQuat();
+	SetActorLocationAndRotation(NewPos, NewRot);
+
+	// 80도 기울면 표지판 굴러가게
+	if (CurrentCollapseAngle >= 80.f)
+	{
+		bIsCollapsing = false;
+		SetActorTickEnabled(false);
+
+		/*FTimerHandle SignHandle;
+		GetWorld()->GetTimerManager().SetTimer(SignHandle, [this]()
+		{
+			if (IsValid(SignActor))
+			{
+				SignActor->TriggerRoll();
+			}
+		}, SignReleaseDelay, false);*/
+	}
 }
 
 void ASatellitePoleActor::TriggerCollapse()
@@ -48,24 +78,15 @@ void ASatellitePoleActor::TriggerCollapse()
 		UNiagaraFunctionLibrary::SpawnSystemAtLocation(GetWorld(), CollapseNiagara, GetActorLocation());
 	}
 
-	// 기둥 쓰러짐
-	PoleMesh->SetEnableGravity(true);
-	PoleMesh->SetSimulatePhysics(true);
-	PoleMesh->WakeAllRigidBodies();
+	// FallDirection 기준으로 회전축 계산 (타워와 동일 방식)
+	FVector Dir = FallDirection;
+	Dir.Z = 0.f;
+	CollapseAxis = FVector::CrossProduct(FVector::UpVector, Dir.GetSafeNormal()).GetSafeNormal();
 
-	GetWorld()->GetTimerManager().SetTimerForNextTick([this]()
-		{
-			// 기둥 꼭대기에 뒤에서 미는 힘 → 자연스럽게 쓰러짐
-			const FVector Dir = FVector(FallDirection.X, FallDirection.Y, 0.f).GetSafeNormal();
-			const FBoxSphereBounds Bounds = PoleMesh->CalcBounds(PoleMesh->GetComponentTransform());
-			const FVector TopLocation = FVector(
-				Bounds.Origin.X,
-				Bounds.Origin.Y,
-				Bounds.Origin.Z + Bounds.BoxExtent.Z);
-			PoleMesh->AddImpulseAtLocation(Dir * ImpulseStrength, TopLocation);
-		});
-
-	// 딜레이 후 표지판 굴러감
+	bIsCollapsing = true;
+	SetActorTickEnabled(true);
+	
+	// 키 입력 즉시 표지판 굴러가게
 	FTimerHandle SignHandle;
 	GetWorld()->GetTimerManager().SetTimer(SignHandle, [this]()
 	{
@@ -75,3 +96,5 @@ void ASatellitePoleActor::TriggerCollapse()
 		}
 	}, SignReleaseDelay, false);
 }
+
+

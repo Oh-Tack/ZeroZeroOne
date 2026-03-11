@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "Components/StaticMeshComponent.h"
+#include "NiagaraSystem.h"
 #include "SatelliteSignActor.generated.h"
 
 UCLASS()
@@ -41,9 +42,17 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Roll")
 	float AngularDamping = 1.5f;
 	
+	// 굴러가면서 땅에 닿을 때 스파크 이펙트
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Roll|FX")
+	TObjectPtr<UNiagaraSystem> SparkFX;
+
 	UFUNCTION(BlueprintCallable, Category = "Roll")
 	void TriggerRoll();
 
 private:
 	bool bHasRolled = false;
+
+	UFUNCTION()
+	void OnHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp,
+			   FVector NormalImpulse, const FHitResult& Hit);
 };
