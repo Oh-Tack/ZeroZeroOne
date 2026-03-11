@@ -3,6 +3,7 @@
 #include "Powerplay/GasStation/GasStationExplosionActor.h"
 #include "Powerplay/GasStation/GasStationRoofActor.h"
 #include "Components/StaticMeshComponent.h"
+#include "Kismet/GameplayStatics.h"
 
 AGasStationExplosionActor::AGasStationExplosionActor()
 {
@@ -30,6 +31,11 @@ void AGasStationExplosionActor::TriggerExplosion()
 {
 	if (bHasExploded) return;
 	bHasExploded = true;
+	
+	if (ExplosionSound)
+	{
+		UGameplayStatics::PlaySoundAtLocation(GetWorld(), ExplosionSound, GetActorLocation());
+	}
 	
 	if (RoofActor != nullptr)
 	{

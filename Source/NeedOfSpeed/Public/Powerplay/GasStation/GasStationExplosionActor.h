@@ -33,6 +33,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Components")
 	TObjectPtr<AGasStationRoofActor> RoofActor;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Explosion|Sound")
+	TObjectPtr<USoundBase> ExplosionSound;
+	
 	UFUNCTION(BlueprintCallable, Category = "Explosion")
 	void TriggerExplosion();
 

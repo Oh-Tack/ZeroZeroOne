@@ -64,7 +64,12 @@ void ABusExplosionActor::TriggerExplosion()
 			NC->SetRelativeScale3D(ParticleScale);
 		}
 	}
-
+	
+	if (ExplosionSound)
+	{
+			UGameplayStatics::PlaySoundAtLocation(GetWorld(), ExplosionSound, GetActorLocation());
+	}
+	
 	FTimerHandle LaunchDelayHandle;
 	GetWorld()->GetTimerManager().SetTimer(LaunchDelayHandle, this, &ABusExplosionActor::ExecuteLaunch, LaunchDelay, false);
 }

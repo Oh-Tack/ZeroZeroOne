@@ -4,6 +4,7 @@
 #include "Powerplay/Tower/TowerDestructionActor.h"
 #include "GeometryCollection/GeometryCollectionComponent.h"
 #include "NiagaraFunctionLibrary.h"
+#include "Kismet/GameplayStatics.h"
 
 // Sets default values
 ATowerDestructionActor::ATowerDestructionActor()
@@ -46,6 +47,11 @@ void ATowerDestructionActor::StartCollapse(FVector FallDirection)
 			GetWorld(), ExplosionFX,
 			GCComp->GetComponentLocation()
 		);
+	}
+	
+	if (CollapseSound)
+	{
+		UGameplayStatics::PlaySoundAtLocation(GetWorld(), CollapseSound, GetActorLocation());
 	}
 
 	bIsCollapsing = true;
@@ -98,6 +104,11 @@ void ATowerDestructionActor::TriggerGroundFracture()
 		);
 	}
 
+	if (ImpactSound)
+	{
+		UGameplayStatics::PlaySoundAtLocation(GetWorld(), ImpactSound, GetActorLocation());
+	}
+	
 	// 부서질 때 재질 변경
 	if (IsValid(FracturedMaterial))
 	{

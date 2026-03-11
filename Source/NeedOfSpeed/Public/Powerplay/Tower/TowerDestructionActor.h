@@ -6,6 +6,7 @@
 #include "GameFramework/Actor.h"
 #include "GeometryCollection/GeometryCollectionComponent.h"
 #include "NiagaraSystem.h"
+#include "Sound/SoundBase.h"
 #include "TowerDestructionActor.generated.h"
 
 UCLASS()
@@ -39,6 +40,12 @@ public:
 	// 부서질 때 적용할 material
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tower|FX")
 	TObjectPtr<UMaterialInterface> FracturedMaterial;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tower|Sound")
+	TObjectPtr<USoundBase> CollapseSound;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tower|Sound")
+	TObjectPtr<USoundBase> ImpactSound;
 	
 	UFUNCTION(BlueprintCallable, Category = "Tower")
 	void StartCollapse(FVector FallDirection);

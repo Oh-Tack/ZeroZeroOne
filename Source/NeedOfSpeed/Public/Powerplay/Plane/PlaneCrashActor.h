@@ -79,6 +79,9 @@ public:
 	TObjectPtr<USoundBase> ApproachSound;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crash|Sound")
+	float ApproachSoundDelay = 1.2f;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crash|Sound")
 	TObjectPtr<USoundBase> ImpactSound;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crash|Effects")

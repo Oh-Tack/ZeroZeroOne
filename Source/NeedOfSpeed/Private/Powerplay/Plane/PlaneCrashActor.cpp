@@ -104,10 +104,14 @@ void APlaneCrashActor::TriggerCrash()
 
 	if (ApproachSound && IsValid(PlaneActor))
 	{
-		UGameplayStatics::PlaySoundAtLocation(
-			GetWorld(),
-			ApproachSound,
-			PlaneActor->GetActorLocation());
+		FTimerHandle SoundDelayHandle;
+        		GetWorld()->GetTimerManager().SetTimer(SoundDelayHandle, [this]()
+        		{
+        			if (IsValid(PlaneActor) && ApproachSound)
+        			{
+        				UGameplayStatics::PlaySoundAtLocation(GetWorld(), ApproachSound, PlaneActor->GetActorLocation());
+        			}
+        		}, ApproachSoundDelay, false);
 	}
 
 	OnApproachStart();

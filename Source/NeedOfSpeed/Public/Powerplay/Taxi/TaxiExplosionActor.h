@@ -9,6 +9,7 @@
 
 class UStaticMeshComponent;
 class UParticleSystem;
+class USoundBase;
 
 UCLASS()
 class NEEDOFSPEED_API ATaxiExplosionActor : public AActor
@@ -40,6 +41,9 @@ public:
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Explosion|Effects")
 	FVector ParticleSpawnOffset = FVector(0.0f, 0.0f, 0.0f);
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Explosion|Sound")
+	TObjectPtr<USoundBase> ExplosionSound;
 	
 	// 이펙트 후 딜레이
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Explosion|Tuning|Timing")

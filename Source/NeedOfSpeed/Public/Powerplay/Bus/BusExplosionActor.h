@@ -9,6 +9,7 @@
 
 class UStaticMeshComponent;
 class UParticleSystem;
+class USoundBase;
 
 UCLASS()
 class NEEDOFSPEED_API ABusExplosionActor : public AActor
@@ -43,6 +44,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Explosion|Effects")
 	FVector ParticleScale = FVector(3.0f, 3.0f, 3.0f);
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Explosion|Sound")
+	TObjectPtr<USoundBase> ExplosionSound;
+	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Explosion|Tuning|Timing")
 	float LaunchDelay = 0.2f;
 

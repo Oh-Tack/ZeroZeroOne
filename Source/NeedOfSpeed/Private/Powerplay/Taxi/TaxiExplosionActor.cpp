@@ -115,6 +115,11 @@ void ATaxiExplosionActor::TriggerExplosion()
 			/*bAutoDestroy=*/true);
 	}
 	
+	if (ExplosionSound)
+	{
+		UGameplayStatics::PlaySoundAtLocation(GetWorld(), ExplosionSound, GetActorLocation());
+	}
+	
 	// 딜레이 후 날리기
 	FTimerHandle LaunchDelayHandle;
 	GetWorld()->GetTimerManager().SetTimer(LaunchDelayHandle, this, &ATaxiExplosionActor::ExecuteLaunch, LaunchDelay, false);
