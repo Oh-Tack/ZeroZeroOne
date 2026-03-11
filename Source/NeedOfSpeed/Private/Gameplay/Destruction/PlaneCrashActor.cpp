@@ -17,16 +17,11 @@ void APlaneCrashActor::BeginPlay()
 {
 	Super::BeginPlay();
 
-	// 비행기를 스플라인 시작 지점에 배치
 	if (IsValid(PlaneActor))
 	{
 		const FVector StartPos = FlightSpline->GetLocationAtSplinePoint(0, ESplineCoordinateSpace::World);
-		const FVector StartDir = FlightSpline->GetDirectionAtSplinePoint(0, ESplineCoordinateSpace::World);
+
 		PlaneActor->SetActorLocation(StartPos);
-		if (!StartDir.IsNearlyZero())
-		{
-			PlaneActor->SetActorRotation(StartDir.Rotation() + MeshRotationOffset);
-		}
 	}
 
 	SetActorTickEnabled(false);
@@ -56,28 +51,22 @@ void APlaneCrashActor::Tick(float DeltaTime)
 		const FVector NewLocation = FlightSpline->GetLocationAtDistanceAlongSpline(Distance, ESplineCoordinateSpace::World);
 		// const FVector Direction = FlightSpline->GetDirectionAtDistanceAlongSpline(Distance, ESplineCoordinateSpace::World);
 		const FVector SplineDir = FlightSpline->GetDirectionAtDistanceAlongSpline(Distance, ESplineCoordinateSpace::World);
-		const FVector EndPos = FlightSpline->GetLocationAtSplinePoint(FlightSpline->GetNumberOfSplinePoints() - 1, ESplineCoordinateSpace::World);
 		
 		PlaneActor->SetActorLocation(NewLocation);
 		if (!SplineDir.IsNearlyZero())
 		{
-			// Pitch는 스플라인 접선에서, Yaw는 항상 착지 지점 방향으로 고정
-			const FVector ToEnd = (EndPos - NewLocation).GetSafeNormal();
-			FRotator Rot = SplineDir.Rotation();
-			Rot.Yaw = ToEnd.Rotation().Yaw;
-			// 착지 직전 기수 수평 복귀 (Alpha 0→1 갈수록 틸트 감소)
-			const float TiltScale = FMath::InterpEaseOut(1.f, 0.f, Alpha, 2.f);
-			PlaneActor->SetActorRotation(Rot + MeshRotationOffset + ApproachTiltOffset * TiltScale);
-			
-			/*FQuat BaseQuat(Rot + MeshRotationOffset);
-			// 메시 로컬 Right 축 기준으로 기수 하향 적용
-			FQuat NoseDownQuat(BaseQuat.GetAxisX(), FMath::DegreesToRadians(NoseDownPitch));
-			PlaneActor->SetActorRotation((NoseDownQuat * BaseQuat).Rotator());*/
-			
-			/*Rot.Pitch += NoseDownPitch; // 강하 중 기수 하향
-			PlaneActor->SetActorRotation(Rot + MeshRotationOffset);*/
-			
-			// PlaneActor->SetActorRotation(Direction.Rotation() + MeshRotationOffset);
+			const FVector FlatSplineDir = FVector(SplineDir.X, SplineDir.Y, 0.f).GetSafeNormal();
+
+			if (!FlatSplineDir.IsNearlyZero())
+			{
+				FRotator FinalRot = FlatSplineDir.Rotation() + MeshRotationOffset;
+
+				const float PitchOffset = FMath::InterpEaseOut(NoseDownPitch, 0.f, Alpha, 2.f);
+				FinalRot.Pitch += PitchOffset;
+				FinalRot.Roll = 0.f;
+
+				PlaneActor->SetActorRotation(FinalRot);
+			}
 		}
 	}
 
@@ -91,29 +80,27 @@ void APlaneCrashActor::TriggerCrash()
 {
 	if (CurrentPhase != EPlaneCrashPhase::Idle) return;
 
+	if (IsValid(PlaneActor))
+	{
+		const FVector StartPos = FlightSpline->GetLocationAtSplinePoint(0, ESplineCoordinateSpace::World);
+		const FVector StartDir = FlightSpline->GetDirectionAtSplinePoint(0, ESplineCoordinateSpace::World);
+		const FVector FlatDir = FVector(StartDir.X, StartDir.Y, 0.f).GetSafeNormal();
+
+		PlaneActor->SetActorLocation(StartPos);
+
+		if (!FlatDir.IsNearlyZero())
+		{
+			FRotator Rot = FlatDir.Rotation() + MeshRotationOffset;
+			Rot.Pitch += NoseDownPitch;
+			Rot.Roll = 0.f;
+
+			PlaneActor->SetActorRotation(Rot);
+		}
+	}
+
 	CurrentPhase = EPlaneCrashPhase::Approaching;
 	ApproachElapsed = 0.f;
 	SetActorTickEnabled(true);
-
-	// 연기 트레일
-	if (TrailNiagara && IsValid(PlaneActor))
-	{
-		UNiagaraFunctionLibrary::SpawnSystemAttached(
-			TrailNiagara,
-			PlaneActor->GetRootComponent(),
-			NAME_None,
-			FVector::ZeroVector,
-			FRotator::ZeroRotator,
-			EAttachLocation::KeepRelativeOffset,
-			true);
-	}
-
-	if (ApproachSound && IsValid(PlaneActor))
-	{
-		UGameplayStatics::PlaySoundAtLocation(GetWorld(), ApproachSound, PlaneActor->GetActorLocation());
-	}
-
-	OnApproachStart();
 }
 
 void APlaneCrashActor::ExecuteImpact()
@@ -123,6 +110,12 @@ void APlaneCrashActor::ExecuteImpact()
 	LandingLocation = PlaneActor->GetActorLocation();
 	LandingRotation = PlaneActor->GetActorRotation();
 
+	// 너무 박힌 상태로 시작하지 않도록 완화
+	LandingRotation.Pitch = FMath::Clamp(LandingRotation.Pitch, -5.f, 5.f);
+	LandingRotation.Roll = 0.f;
+
+	PlaneActor->SetActorRotation(LandingRotation);
+	
 	// 스플라인 끝 방향의 수평 성분 → 슬라이딩 방향
 	const FVector EndDir = FlightSpline->GetDirectionAtSplinePoint(
 		FlightSpline->GetNumberOfSplinePoints() - 1, ESplineCoordinateSpace::World);
@@ -193,7 +186,8 @@ void APlaneCrashActor::ExecuteSliding(float DeltaTime)
 		PlaneActor->SetActorLocation(NewLoc);
 
 		// 기수 수평 복귀
-		const FRotator LevelRotation = FRotator(0.f, LandingRotation.Yaw, LandingRotation.Roll);
+		const FRotator LevelRotation = FRotator(0.f, LandingRotation.Yaw, 0.f);
+		// const FRotator LevelRotation = FRotator(0.f, LandingRotation.Yaw, LandingRotation.Roll);
 		PlaneActor->SetActorRotation(FMath::Lerp(LandingRotation, LevelRotation, Alpha));
 	}
 

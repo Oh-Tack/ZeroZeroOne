@@ -52,9 +52,8 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crash")
 	FRotator MeshRotationOffset = FRotator(0.f, -90.f, 0.f);
 	
-	// 강하 중 추가 기울기 (에디터에서 직접 조정)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crash|Approach")
-	FRotator ApproachTiltOffset = FRotator(0.f, 0.f, 0.f);
+	float NoseDownPitch = -8.f;
 	
 	// 착지 후 슬라이딩 속도 (cm/s)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crash|Sliding")
