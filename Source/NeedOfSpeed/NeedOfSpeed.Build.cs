@@ -20,10 +20,11 @@ public class NeedOfSpeed : ModuleRules
 			"GeometryCollectionEngine",
 			"ChaosSolverEngine",
 			"FieldSystemEngine",
-			"Landscape",
 			"UMG",
 			"Slate",
 			"SlateCore",
+			"Landscape",
+			"LevelSequence"
 		});
 
 		PrivateDependencyModuleNames.AddRange(new string[] {  });

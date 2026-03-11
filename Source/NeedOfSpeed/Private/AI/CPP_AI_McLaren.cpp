@@ -222,20 +222,29 @@ void ACPP_AI_McLaren::OnVehicleHit(
 
 	bDestroyCar = true;
 
-	// 1️⃣ 파괴 이펙트 Spawn
+	// 1️⃣ 차량에 파괴 이펙트 Attach (따라오게)
 	if (DestroyEffect)
 	{
-		UNiagaraFunctionLibrary::SpawnSystemAtLocation(
-			GetWorld(),
-			DestroyEffect,
-			OtherActor->GetActorLocation()
+		UNiagaraComponent* FX = UNiagaraFunctionLibrary::SpawnSystemAttached(
+			DestroyEffect,              // NiagaraSystem*
+			GetMesh(),                  // 부모: 차량 Mesh
+			NAME_None,                  // 소켓 없음
+			FVector::ZeroVector,        // 위치 오프셋
+			FRotator::ZeroRotator,      // 회전 오프셋
+			EAttachLocation::KeepRelativeOffset, // 상대위치 유지
+			true                        // 자동 소멸
 		);
+	}
+
+	if (DestroySound)
+	{
+		UGameplayStatics::PlaySound2D(GetWorld(), DestroySound);
 	}
 
 	// 2️⃣ 차량 날라가기
 	if (UPrimitiveComponent* MeshComp = GetMesh())
 	{
-		MeshComp->SetSimulatePhysics(true); // Physics 활성화
+		MeshComp->SetSimulatePhysics(true);
 		FVector Launch = NormalImpulse.GetSafeNormal() * ImpactScore * LaunchMultiplier;
 		MeshComp->AddImpulse(Launch, NAME_None, true);
 	}

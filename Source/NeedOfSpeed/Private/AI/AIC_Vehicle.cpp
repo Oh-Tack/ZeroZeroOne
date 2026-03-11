@@ -120,12 +120,18 @@ float AAIC_Vehicle::CalculateTopSpeed()
 {
 	if (!Road || !ControllerVehicle || !CachedAIVehicle) return 0.0f;
 
+	float BaseTopSpeed = CachedAIVehicle->Max_Speed;
+
+	// --- 기존 커브 감속 로직 ---
 	FVector Start = IUIn_isVehicle::Execute_GetFrontOfCar(ControllerVehicle);
 	float CurrSpeed = IUIn_isVehicle::Execute_GetCurrentSpeed(ControllerVehicle);
 
-	// 1. 시야 거리 계산
 	float LookAhead = UKismetMathLibrary::MapRangeClamped(
-	   CurrSpeed, CachedAIVehicle->Min_Speed, CachedAIVehicle->Max_Speed, 2000.f, 15000.f
+		CurrSpeed,
+		CachedAIVehicle->Min_Speed,
+		CachedAIVehicle->Max_Speed,
+		2000.f,
+		15000.f
 	);
 
 	FVector SpeedLookAtPos;
@@ -135,55 +141,16 @@ float AAIC_Vehicle::CalculateTopSpeed()
 	FRotator DeltaRot = UKismetMathLibrary::NormalizedDeltaRotator(LookRot, ControllerVehicle->GetActorRotation());
 
 	float Angle = FMath::Abs(DeltaRot.Yaw);
-
-	// 2. 코너 감속 계산 (비선형)
-	float AngleAlpha = FMath::Clamp(Angle / CachedAIVehicle->Angle, 0.0f, 1.0f);
+	float AngleAlpha = FMath::Clamp(Angle / CachedAIVehicle->Angle, 0.f, 1.f);
 	float SpeedAlpha = FMath::Pow(AngleAlpha, 1.5f);
 
-	float TargetSpeed = FMath::Lerp(CachedAIVehicle->Max_Speed, CachedAIVehicle->Min_Speed, SpeedAlpha);
+	float CurvedTopSpeed = FMath::Lerp(BaseTopSpeed, CachedAIVehicle->Min_Speed, SpeedAlpha);
 
-	// -------------------------
-	// RubberBand (Catch-up) 시스템
-	// -------------------------
-	// ACPP_AIRaceManager* Manager = ACPP_AIRaceManager::GetInstance(GetWorld());
-	//
-	// if (Manager)
-	// {
-	// 	float MyDist = Manager->GetDistanceOfVehicle(ControllerVehicle);
-	// 	float LeadDist = Manager->GetLeadDistance();
-	//
-	// 	float Gap = LeadDist - MyDist;
-	//
-	// 	// 4000 이상 벌어지면 보정 시작
-	// 	if (Gap > 4000.f)
-	// 	{
-	// 		int MyRank = Manager->GetRankOfVehicle(ControllerVehicle);
-	// 		int Total = FMath::Max(GetTotalRacers(), 2);
-	//
-	// 		float DistanceAlpha = FMath::Clamp((Gap - 4000.f) / 8000.f, 0.f, 1.f);
-	//
-	// 		float RankAlpha = 0.f;
-	// 		if (Total > 1)
-	// 		{
-	// 			RankAlpha = (float)(MyRank - 1) / (float)(Total - 1);
-	// 		}
-	// 		
-	// 		float Headroom = CachedAIVehicle->Max_Speed - TargetSpeed;
-	// 		float BonusSpeed = Headroom * (DistanceAlpha * RankAlpha * 0.5f); // 최대 50%의 여유폭 활용
-	//
-	// 		TargetSpeed += BonusSpeed;
-	// 	}
-	// }
-
-	// -------------------------
 	// 급커브 안전 감속
-	// -------------------------
 	if (Angle > 25.f)
-	{
-		TargetSpeed *= 0.6f;
-	}
+		CurvedTopSpeed *= 0.6f;
 
-	return TargetSpeed;
+	return CurvedTopSpeed;
 }
 
 // -------------------------
@@ -344,37 +311,78 @@ void AAIC_Vehicle::HandleLaneChange(bool bVehicleInFront, const TArray<AActor*>&
 
 void AAIC_Vehicle::HandleTargetSpeed(float TargetTopSpeed, float DeltaTime, float Steering)
 {
-	if (!ControllerVehicle || !CachedAIVehicle) return;
+    if (!ControllerVehicle || !CachedAIVehicle) return;
 
-	float CurrentSpeed = IUIn_isVehicle::Execute_GetCurrentSpeed(ControllerVehicle);
-	float SpeedDiff = CurrentSpeed - TargetTopSpeed;
+    float CurrentSpeed = IUIn_isVehicle::Execute_GetCurrentSpeed(ControllerVehicle);
+    float BaseTopSpeed = CachedAIVehicle->Max_Speed;
 
-	float Throttle = 0.0f;
-	float Brake = 0.0f;
+    // -------------------------
+    // 1️⃣ 기본 커브 감속
+    // -------------------------
+    float CurvedTopSpeed = TargetTopSpeed;
 
-	if (SpeedDiff > 0)
-	{
-		// 🔹 브레이크 강도 대폭 강화
-		// 차이가 클수록 즉시 최대 제동(1.0)을 수행하도록 분모 값을 낮춤
-		Brake = FMath::Clamp(SpeedDiff / 4.0f, 0.0f, 1.0f);
-        
-		// 아주 급격한 감속이 필요한 경우 스로틀을 완전히 차단
-		Throttle = 0.0f;
-	}
-	else
-	{
-		Throttle = 1.0f;
-		Brake = 0.0f;
-	}
+    // -------------------------
+    // 2️⃣ 캐치업(Catch-up) 적용
+    // -------------------------
+    if (ACPP_AIRaceManager* Manager = ACPP_AIRaceManager::GetInstance(GetWorld()))
+    {
+        int MyRank = Manager->GetRankOfVehicle(ControllerVehicle);
+        int TotalCars = FMath::Max(GetTotalRacers(), 2);
 
-	// 코너링 중 타이어 접지력을 위해 스로틀 미세 조절 (Optional)
-	if (FMath::Abs(Steering) > 0.6f && CurrentSpeed > CachedAIVehicle->Min_Speed)
-	{
-		Throttle *= 0.5f; 
-	}
+        if (MyRank > 1 && TotalCars > 1)
+        {
+            float GapToLeader = Manager->LeadDistance - Manager->GetDistanceOfVehicle(ControllerVehicle);
 
-	IUIn_isVehicle::Execute_SetThrottle(ControllerVehicle, Throttle);
-	IUIn_isVehicle::Execute_SetBrake(ControllerVehicle, Brake);
+            const float GapRatio = FMath::Clamp(GapToLeader / 8000.f, 0.f, 1.f); // 최대 8000cm 보정
+            const float RankRatio = FMath::Clamp((float)(MyRank - 1) / (float)(TotalCars - 1), 0.f, 1.f);
+
+            float SpeedBoost = (0.18f * GapRatio) + (0.22f * RankRatio);
+            SpeedBoost = FMath::Clamp(SpeedBoost, 0.1f, 0.5f);
+
+            CurvedTopSpeed = FMath::Min(CurvedTopSpeed, BaseTopSpeed * (1.f + SpeedBoost));
+        }
+    }
+
+    // -------------------------
+    // 3️⃣ 직선 구간 속도 강화
+    // -------------------------
+    float ForwardVision = UKismetMathLibrary::MapRangeClamped(CurrentSpeed, CachedAIVehicle->Min_Speed, CachedAIVehicle->Max_Speed, 1500.f, 7500.f);
+    if (ForwardVision > 5000.f) // 충분히 직선 구간이면
+    {
+        CurvedTopSpeed *= 1.1f; // 10% 추가 가속
+        CurvedTopSpeed = FMath::Min(CurvedTopSpeed, BaseTopSpeed * 1.5f); // 상한 제한
+    }
+
+    // -------------------------
+    // 4️⃣ 스로틀/브레이크 결정
+    // -------------------------
+    float Throttle = 1.f;
+    float Brake = 0.f;
+
+    float SpeedDiff = CurrentSpeed - CurvedTopSpeed;
+    if (SpeedDiff > 0.f)
+    {
+        Brake = FMath::Clamp(SpeedDiff / 4.f, 0.f, 1.f);
+        Throttle = 0.f;
+    }
+
+    if (FMath::Abs(Steering) > 0.6f && CurrentSpeed > CachedAIVehicle->Min_Speed)
+        Throttle *= 0.5f;
+
+    // -------------------------
+    // 5️⃣ Emergency Brake 적용
+    // -------------------------
+    if (bEmergencyBrake)
+    {
+        Throttle = 0.f;
+        Brake = FMath::Max(Brake, 1.f);
+    }
+
+    // -------------------------
+    // 6️⃣ 최종 적용
+    // -------------------------
+    IUIn_isVehicle::Execute_SetThrottle(ControllerVehicle, Throttle);
+    IUIn_isVehicle::Execute_SetBrake(ControllerVehicle, Brake);
 }
 
 // -------------------------

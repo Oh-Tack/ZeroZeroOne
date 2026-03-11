@@ -83,6 +83,9 @@ public:
 	
 	UPROPERTY(EditDefaultsOnly, Category="Effects")
 	TObjectPtr<class UNiagaraSystem> DestroyEffect;  // 파괴 이펙트
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TObjectPtr<class USoundBase> DestroySound;
 
 	UPROPERTY(EditDefaultsOnly, Category="Effects")
 	float LaunchMultiplier = 5.f; // 충격으로 날아가는 힘 조절
@@ -95,6 +98,12 @@ public:
 	FTimerHandle RespawnTimer;
 	
 	bool bDestroyCar = false;
+	
+	UPROPERTY()
+	float StuckTimer = 0.f;
+
+	UPROPERTY(EditAnywhere)
+	float MaxStuckTime = 5.0f; // 2초 이상 멈춰있으면 꼈다고 판단
 	
 protected:
 	bool bIsRespawning = false;

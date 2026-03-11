@@ -57,7 +57,7 @@ public:
 	UPROPERTY()
 	TArray<FRacerInfo> RacerTable;
 	
-	
+	float LeadDistance = 0.f;
 
 private:
 	/** 주기적으로 순위를 갱신하는 핵심 로직 */
@@ -65,8 +65,7 @@ private:
 
 	UPROPERTY()
 	class ACPP_Road* TargetRoad;
-
-	float LeadDistance = 0.f;
+	
 	FTimerHandle UpdateTimerHandle;
 
 	UPROPERTY(EditAnywhere, Category = "RaceSettings")
