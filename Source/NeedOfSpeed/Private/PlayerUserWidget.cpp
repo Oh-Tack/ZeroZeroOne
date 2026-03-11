@@ -18,6 +18,7 @@ void UPlayerUserWidget::NativeConstruct()
 
 	// 2. 위젯이 키 입력을 받을 수 있도록 포커스 설정
 	SetIsFocusable(true);
+	
 }
 
 FReply UPlayerUserWidget::NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent)
@@ -25,29 +26,32 @@ FReply UPlayerUserWidget::NativeOnKeyDown(const FGeometry& InGeometry, const FKe
 	if (bIsTransitioning) return FReply::Handled();
 	bIsTransitioning = true;
 
-	// 1. 깜빡임 중단
+	// 1. 텍스트 깜빡임 정지 및 퇴장 애니메이션
 	StopAnimation(Text_Glow);
-
-	// 2. 퇴장 애니메이션 재생 (단판 재생: 1)
 	if (Text_Exit)
 	{
 		PlayAnimation(Text_Exit, 0.0f, 1);
 	}
-
-	// 3. 핵심: 화면 서서히 어두워지기 (Fade Out)
+    
+	// 2. 카메라 페이드 아웃 (월드 배경이 3초 동안 서서히 까맣게 변함)
 	APlayerController* PC = GetWorld()->GetFirstPlayerController();
 	if (PC && PC->PlayerCameraManager)
 	{
-		// StartCameraFade(FromAlpha, ToAlpha, Duration, Color, bShouldFadeAudio, bHoldWhenFinished)
-		// 0.0(투명)에서 1.0(검은색)으로 1.0초 동안 페이드!
-		PC->PlayerCameraManager->StartCameraFade(0.0f, 1.0f, 1.0f, FColor::Black, false, true);
+		PC->PlayerCameraManager->StartCameraFade(0.0f, 1.0f, 3.0f, FColor::Black, false, true);
 	}
 
-	// 4. 페이드 아웃 시간(1.0초)만큼 기다렸다가 레벨 이동 (타이머 사용)
-	FTimerHandle TimerHandle;
-	GetWorld()->GetTimerManager().SetTimer(TimerHandle, this, &UPlayerUserWidget::TransitionToRacingMap, 1.0f, false);
+	// 3. UI 로딩창(동그라미+텍스트) 애니메이션 재생
+	// (카메라 페이드와 동시에 화면 앞쪽에 동그라미가 나타납니다)
+	if (Loading_In)
+	{
+		PlayAnimation(Loading_In, 0.0f, 1);
+	}
 
-	UE_LOG(LogTemp, Warning, TEXT("Any Key Pressed! Fading Out..."));
+	// 4. 타이머: 페이드 아웃 시간(3초)에 정확히 맞춰서 BetaMap으로 이동!
+	FTimerHandle TimerHandle;
+	GetWorld()->GetTimerManager().SetTimer(TimerHandle, this, &UPlayerUserWidget::TransitionToRacingMap, 3.0f, false);
+
+	UE_LOG(LogTemp, Warning, TEXT("Fading Out and Showing Loading UI..."));
 	return FReply::Handled();
 }
 
