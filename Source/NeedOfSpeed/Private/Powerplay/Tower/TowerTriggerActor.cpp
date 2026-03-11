@@ -1,8 +1,8 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 
-#include "NeedOfSpeed/Public/Gameplay/Destruction/TowerTriggerActor.h"
-#include "NeedOfSpeed/Public/Gameplay/Destruction/TowerDestructionActor.h"
+#include "Powerplay/Tower/TowerTriggerActor.h"
+#include "Powerplay/Tower/TowerDestructionActor.h"
 #include "NeedOfSpeed/Public/Player/RacingCar.h"
 
 // Sets default values

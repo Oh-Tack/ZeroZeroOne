@@ -1,7 +1,7 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
-#include "Gameplay/Destruction/BusTriggerActor.h"
-#include "Gameplay/Destruction/BusExplosionActor.h"
+#include "Powerplay/Bus/BusTriggerActor.h"
+#include "Powerplay/Bus/BusExplosionActor.h"
 #include "Player/RacingCar.h"
 #include "AI/CPP_AI_McLaren.h"
 

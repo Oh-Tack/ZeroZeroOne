@@ -1,8 +1,8 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 
-#include "Gameplay/Destruction/PlaneTriggerActor.h"
-#include "Gameplay/Destruction/PlaneCrashActor.h"
+#include "Powerplay/Plane/PlaneTriggerActor.h"
+#include "Powerplay/Plane/PlaneCrashActor.h"
 #include "Player/RacingCar.h"
 #include "AI/CPP_AI_McLaren.h"
 #include "Kismet/GameplayStatics.h"

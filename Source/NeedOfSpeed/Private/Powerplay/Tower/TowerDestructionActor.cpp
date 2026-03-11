@@ -1,7 +1,7 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 
-#include "NeedOfSpeed/Public/Gameplay/Destruction/TowerDestructionActor.h"
+#include "Powerplay/Tower/TowerDestructionActor.h"
 #include "GeometryCollection/GeometryCollectionComponent.h"
 #include "NiagaraFunctionLibrary.h"
 

@@ -1,7 +1,7 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
-#include "Gameplay/Destruction/GasStationExplosionActor.h"
-#include "Gameplay/Destruction/GasStationRoofActor.h"
+#include "Powerplay/GasStation/GasStationExplosionActor.h"
+#include "Powerplay/GasStation/GasStationRoofActor.h"
 #include "Components/StaticMeshComponent.h"
 
 AGasStationExplosionActor::AGasStationExplosionActor()

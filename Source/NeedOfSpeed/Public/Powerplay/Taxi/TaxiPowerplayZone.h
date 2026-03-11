@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "Components/BoxComponent.h"
-#include "Gameplay/TaxiExplosionActor.h"
+#include "Powerplay/Taxi/TaxiExplosionActor.h"
 #include "TaxiPowerplayZone.generated.h"
 
 UCLASS()

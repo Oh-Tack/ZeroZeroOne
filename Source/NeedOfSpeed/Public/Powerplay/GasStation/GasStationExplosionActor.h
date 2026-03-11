@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
-#include "Gameplay/Destruction/GasStationRoofActor.h"
+#include "GasStationRoofActor.h"
 #include "GasStationExplosionActor.generated.h"
 
 class UStaticMeshComponent;

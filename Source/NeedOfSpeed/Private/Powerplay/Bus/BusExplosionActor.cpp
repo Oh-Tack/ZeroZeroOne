@@ -1,6 +1,6 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
-#include "Gameplay/Destruction/BusExplosionActor.h"
+#include "Powerplay/Bus/BusExplosionActor.h"
 
 #include "Components/StaticMeshComponent.h"
 #include "Kismet/GameplayStatics.h"

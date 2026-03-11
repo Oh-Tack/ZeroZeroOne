@@ -1,8 +1,8 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 
-#include "Gameplay/Destruction/GasStationTriggerActor.h"
-#include "Gameplay/Destruction/GasStationExplosionActor.h"
+#include "Powerplay/GasStation/GasStationTriggerActor.h"
+#include "Powerplay/GasStation/GasStationExplosionActor.h"
 #include "Player/RacingCar.h"
 #include "AI/CPP_AI_McLaren.h"
 
