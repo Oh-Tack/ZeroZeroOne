@@ -41,8 +41,12 @@ void ACPP_AIRaceManager::UpdateRaceData()
 {
 	if (!TargetRoad || !TargetRoad->Spline) return;
 
-	float TrackLength = TargetRoad->Spline->GetSplineLength();
+	const float TrackLength = TargetRoad->Spline->GetSplineLength();
+	const int32 FinishLap = 1;
 
+	// ======================
+	// 1️⃣ 거리 + 랩 계산
+	// ======================
 	for (auto& Info : RacerTable)
 	{
 		if (!IsValid(Info.Vehicle)) continue;
@@ -50,26 +54,31 @@ void ACPP_AIRaceManager::UpdateRaceData()
 		FVector Loc = Info.Vehicle->GetActorLocation();
 
 		float Key = TargetRoad->Spline->FindInputKeyClosestToWorldLocation(Loc);
-		float NewDistance = TargetRoad->Spline->GetDistanceAlongSplineAtSplineInputKey(Key);
+		float NewDistance =
+			TargetRoad->Spline->GetDistanceAlongSplineAtSplineInputKey(Key);
 
-		// 랩 체크
-		if (Info.DistanceAlongSpline > TrackLength - 1000.f && NewDistance < 1000.f)
+		if (Info.DistanceAlongSpline > TrackLength - 1000.f &&
+			NewDistance < 1000.f)
 		{
 			Info.Lap++;
 		}
 
 		Info.PreviousDistance = Info.DistanceAlongSpline;
 		Info.DistanceAlongSpline = NewDistance;
-
-		// 레이스 진행도 계산
 		Info.RaceProgress = Info.Lap * TrackLength + Info.DistanceAlongSpline;
 	}
 
-	// 진행도로 정렬
-	RacerTable.Sort([](const FRacerInfo& A, const FRacerInfo& B) {
+	// ======================
+	// 2️⃣ 정렬
+	// ======================
+	RacerTable.Sort([](const FRacerInfo& A, const FRacerInfo& B)
+	{
 		return A.RaceProgress > B.RaceProgress;
 	});
 
+	// ======================
+	// 3️⃣ Rank 부여
+	// ======================
 	if (RacerTable.Num() > 0)
 	{
 		LeadDistance = RacerTable[0].RaceProgress;
@@ -79,15 +88,52 @@ void ACPP_AIRaceManager::UpdateRaceData()
 			RacerTable[i].Rank = i + 1;
 		}
 	}
-	
-	// 🔹 1초마다 출력하도록 시간 체크 추가
+
+	// ======================
+	// 4️⃣ Finish 기록 ⭐
+	// ======================
 	float CurrentTime = GetWorld()->GetTimeSeconds();
+
+	for (const FRacerInfo& Info : RacerTable)
+	{
+		if (Info.Lap >= FinishLap &&
+			!FinishedSet.Contains(Info.Vehicle))
+		{
+			FinishedSet.Add(Info.Vehicle);
+
+			FFinishRecord Record;
+			Record.Vehicle = Info.Vehicle;
+			Record.FinishRank = FinishedRacers.Num() + 1;
+			Record.FinishTime = CurrentTime;
+
+			FinishedRacers.Add(Record);
+
+			// ⭐ 모든 차량 완주 이벤트
+			OnRacerFinished.Broadcast(Record);
+
+			APawn* Pawn = Cast<APawn>(Info.Vehicle);
+			if (Pawn && Pawn->IsPlayerControlled())
+			{
+				OnPlayerFinished.Broadcast(Info.Vehicle);
+			}
+
+			UE_LOG(LogTemp, Warning,
+				TEXT("FINISH: %s Rank %d Time %.2f"),
+				*Info.Vehicle->GetActorLabel(),
+				Record.FinishRank,
+				Record.FinishTime);
+		}
+	}
+
+	// ======================
+	// 5️⃣ 로그 출력
+	// ======================
 	if (CurrentTime - LastLogTime >= 1.0f)
 	{
 		PrintCurrentRankings();
 		LastLogTime = CurrentTime;
 	}
-	
+
 	if (RespawnSlotCounter.Num() > 50)
 	{
 		RespawnSlotCounter.Empty();

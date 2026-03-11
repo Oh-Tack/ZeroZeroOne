@@ -352,7 +352,36 @@ void AAIC_Vehicle::HandleTargetSpeed(float TargetTopSpeed, float DeltaTime, floa
         CurvedTopSpeed *= 1.1f; // 10% 추가 가속
         CurvedTopSpeed = FMath::Min(CurvedTopSpeed, BaseTopSpeed * 1.5f); // 상한 제한
     }
+	
+	if (VehicleInFrontActor)
+	{
+		float DistanceToFront =
+			FVector::Dist(
+				ControllerVehicle->GetActorLocation(),
+				VehicleInFrontActor->GetActorLocation());
 
+		// 감속 시작 거리
+		const float SlowStart = 1500.f;
+		const float HardSlow = 500.f;
+
+		if (DistanceToFront < SlowStart)
+		{
+			// 가까울수록 더 감속
+			float Alpha =
+				FMath::Clamp(
+					(SlowStart - DistanceToFront) /
+					(SlowStart - HardSlow),
+					0.f,
+					1.f);
+
+			// 최대 20% 감속 (멈추진 않음)
+			float FollowSpeedFactor =
+				FMath::Lerp(1.0f, 0.8f, Alpha);
+
+			CurvedTopSpeed *= FollowSpeedFactor;
+		}
+	}
+	
     // -------------------------
     // 4️⃣ 스로틀/브레이크 결정
     // -------------------------
@@ -513,7 +542,7 @@ void AAIC_Vehicle::CheckForStaticObstacles(float DeltaTime, const TArray<AAIC_Ve
     // =====================================================
     if (HitCount > 0)
     {
-        const float LaneBiasStrength = 0.35f;
+        const float LaneBiasStrength = 0.75f;
 
         if (CurrentSideOfRoad > 0.5f)
         {
@@ -526,13 +555,13 @@ void AAIC_Vehicle::CheckForStaticObstacles(float DeltaTime, const TArray<AAIC_Ve
             TargetAvoidance += LaneBiasStrength;
         }
     }
-
+	
     TargetAvoidance = FMath::Clamp(TargetAvoidance, -1.0f, 1.0f);
 
     // =====================================================
     // 🔹 회피값 스무딩
     // =====================================================
-    float InterpSpeed = bRayHit ? 10.f : 5.f;
+    float InterpSpeed = bRayHit ? 12.f : 7.f;
 
     AvoidanceForceValue = FMath::FInterpTo(
         AvoidanceForceValue,
@@ -547,7 +576,7 @@ void AAIC_Vehicle::CheckForStaticObstacles(float DeltaTime, const TArray<AAIC_Ve
     if (bRayHit)
     {
         LastDetectedObstacle = CurrentHitActor;
-        AvoidanceCooldown = 0.5f;
+        AvoidanceCooldown = 0.25f;
     }
     else if (AvoidanceCooldown > 0.f && IsValid(LastDetectedObstacle))
     {

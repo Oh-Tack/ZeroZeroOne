@@ -4,12 +4,25 @@
 #include "GameFramework/Actor.h"
 #include "CPP_AIRaceManager.generated.h"
 
-USTRUCT(BlueprintType) // 블루프린트 타입으로 만들기
-struct FRacerInfo
+USTRUCT(BlueprintType)
+struct FFinishRecord
 {
 	GENERATED_BODY()
 
-public: // 👈 반드시 public
+	UPROPERTY(BlueprintReadWrite)
+	AActor* Vehicle = nullptr;
+
+	UPROPERTY(BlueprintReadWrite)
+	int32 FinishRank = 0;
+
+	UPROPERTY(BlueprintReadWrite)
+	float FinishTime = 0.f;
+};
+
+USTRUCT(BlueprintType)
+struct FRacerInfo
+{
+	GENERATED_BODY()
 
 	UPROPERTY(BlueprintReadWrite)
 	AActor* Vehicle = nullptr;
@@ -29,6 +42,14 @@ public: // 👈 반드시 public
 	UPROPERTY(BlueprintReadWrite)
 	float RaceProgress = 0.f;
 };
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
+	FOnPlayerFinished,
+	AActor*, PlayerVehicle);
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
+	FOnRacerFinished,
+	const FFinishRecord&, Record);
 
 UCLASS()
 class NEEDOFSPEED_API ACPP_AIRaceManager : public AActor
@@ -54,8 +75,20 @@ public:
 	// 디버그용 순위 출력
 	void PrintCurrentRankings();
 	
-	UPROPERTY()
+	UPROPERTY(BlueprintReadWrite)
 	TArray<FRacerInfo> RacerTable;
+	
+	UPROPERTY(BlueprintReadOnly)
+	TArray<FFinishRecord> FinishedRacers;
+	
+	UPROPERTY()
+	TSet<AActor*> FinishedSet;
+	
+	UPROPERTY(BlueprintAssignable, Category="Race")
+	FOnPlayerFinished OnPlayerFinished;
+	
+	UPROPERTY(BlueprintAssignable)
+	FOnRacerFinished OnRacerFinished;
 	
 	float LeadDistance = 0.f;
 
