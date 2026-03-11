@@ -3,6 +3,8 @@
 #include "NiagaraFunctionLibrary.h"
 #include "Sound/SoundBase.h"
 #include "Particles/ParticleSystem.h"
+#include "NiagaraComponent.h"
+#include "Particles/ParticleSystemComponent.h"
 
 APlaneCrashActor::APlaneCrashActor()
 {
@@ -133,63 +135,59 @@ void APlaneCrashActor::TriggerCrash()
 void APlaneCrashActor::SpawnImpactEffects()
 {
 	if (!IsValid(PlaneActor))
-    	{
-    		return;
-    	}
+	{
+		return;
+	}
 
+	// 뒤쪽 스파크/불 이펙트: PlaneActor에 붙여서 계속 따라가게
+	if (ImpactNiagara && !ActiveImpactNiagaraComp)
+	{
+		ActiveImpactNiagaraComp = UNiagaraFunctionLibrary::SpawnSystemAttached(
+			ImpactNiagara,
+			PlaneActor->GetRootComponent(),
+			NAME_None,
+			SlidingSparkOffset,   // 뒤쪽 위치 오프셋
+			FRotator::ZeroRotator,
+			EAttachLocation::KeepRelativeOffset,
+			true
+		);
+	}
+
+	if (ImpactParticle && !ActiveImpactParticleComp)
+	{
+		ActiveImpactParticleComp = UGameplayStatics::SpawnEmitterAttached(
+			ImpactParticle,
+			PlaneActor->GetRootComponent(),
+			NAME_None,
+			SlidingSparkOffset,
+			FRotator::ZeroRotator,
+			EAttachLocation::KeepRelativeOffset,
+			true
+		);
+	}
+
+	// 사운드/카메라쉐이크는 한 번만
 	const FVector EffectLocation = PlaneActor->GetActorLocation();
-	
-	if (SlidingSparkNiagara)
-    	{
-    		UNiagaraFunctionLibrary::SpawnSystemAttached(
-    			SlidingSparkNiagara,
-    			PlaneActor->GetRootComponent(),
-    			NAME_None,
-    			FVector::ZeroVector,
-    			FRotator::ZeroRotator,
-    			EAttachLocation::KeepRelativeOffset,
-    			true);
-    	}
-    
-    	if (ImpactParticle)
-    	{
-    		UGameplayStatics::SpawnEmitterAtLocation(
-    			GetWorld(),
-    			ImpactParticle,
-    			LandingLocation + ImpactParticleOffset,
-    			FRotator::ZeroRotator,
-    			ImpactParticleScale);
-    	}
-    
-    	if (ImpactNiagara)
-    	{
-    		UNiagaraFunctionLibrary::SpawnSystemAtLocation(
-    			GetWorld(),
-    			ImpactNiagara,
-    			LandingLocation + ImpactParticleOffset,
-    			FRotator::ZeroRotator,
-    			ImpactParticleScale);
-    	}
-    
-    	if (ImpactSound)
-    	{
-    		UGameplayStatics::PlaySoundAtLocation(
-    			GetWorld(),
-    			ImpactSound,
-    			LandingLocation);
-    	}
-    
-    	if (ImpactCameraShake)
-    	{
-    		UGameplayStatics::PlayWorldCameraShake(
-    			GetWorld(),
-    			ImpactCameraShake,
-    			LandingLocation,
-    			0.f,
-    			5000.f);
-    	}
-    
-    	OnImpact();
+
+	if (ImpactSound)
+	{
+		UGameplayStatics::PlaySoundAtLocation(
+			GetWorld(),
+			ImpactSound,
+			EffectLocation);
+	}
+
+	if (ImpactCameraShake)
+	{
+		UGameplayStatics::PlayWorldCameraShake(
+			GetWorld(),
+			ImpactCameraShake,
+			EffectLocation,
+			0.f,
+			5000.f);
+	}
+
+	OnImpact();
 }
 
 void APlaneCrashActor::ExecuteImpact()
