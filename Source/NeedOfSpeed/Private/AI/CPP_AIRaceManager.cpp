@@ -42,7 +42,7 @@ void ACPP_AIRaceManager::UpdateRaceData()
 	if (!TargetRoad || !TargetRoad->Spline) return;
 
 	const float TrackLength = TargetRoad->Spline->GetSplineLength();
-	const int32 FinishLap = 1;
+	const int32 FinishLap = 2;
 
 	// ======================
 	// 1️⃣ 거리 + 랩 계산
