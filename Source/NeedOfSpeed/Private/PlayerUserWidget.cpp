@@ -22,35 +22,32 @@ void UPlayerUserWidget::NativeConstruct()
 
 FReply UPlayerUserWidget::NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent)
 {
-	// 1. 중복 실행 방지
 	if (bIsTransitioning) return FReply::Handled();
 	bIsTransitioning = true;
 
-	// 2. 루프 중인 깜빡임 애니메이션 강제 중지
-	if (Text_Glow)
-	{
-		StopAnimation(Text_Glow);
-	}
+	// 1. 깜빡임 중단
+	StopAnimation(Text_Glow);
 
-	// 3. 퇴장 애니메이션 재생 및 종료 이벤트 연결
+	// 2. 퇴장 애니메이션 재생 (단판 재생: 1)
 	if (Text_Exit)
 	{
-		// 퇴장 애니메이션은 절대 Loop 되면 안 됩니다! (단판 재생: 1)
-		PlayAnimation(Text_Exit, 0.0f, 1, EUMGSequencePlayMode::Forward);
-
-		// 애니메이션 종료 시 실행될 함수 연결
-		FWidgetAnimationDynamicEvent EndEvent;
-		EndEvent.BindDynamic(this, &UPlayerUserWidget::TransitionToRacingMap);
-		BindToAnimationFinished(Text_Exit, EndEvent);
-        
-		UE_LOG(LogTemp, Warning, TEXT("Exit Animation Started... Waiting for Finish."));
+		PlayAnimation(Text_Exit, 0.0f, 1);
 	}
-	else
+
+	// 3. 핵심: 화면 서서히 어두워지기 (Fade Out)
+	APlayerController* PC = GetWorld()->GetFirstPlayerController();
+	if (PC && PC->PlayerCameraManager)
 	{
-		// 애니메이션 에셋이 없다면 즉시 이동 (보험 코드)
-		TransitionToRacingMap();
+		// StartCameraFade(FromAlpha, ToAlpha, Duration, Color, bShouldFadeAudio, bHoldWhenFinished)
+		// 0.0(투명)에서 1.0(검은색)으로 1.0초 동안 페이드!
+		PC->PlayerCameraManager->StartCameraFade(0.0f, 1.0f, 1.0f, FColor::Black, false, true);
 	}
 
+	// 4. 페이드 아웃 시간(1.0초)만큼 기다렸다가 레벨 이동 (타이머 사용)
+	FTimerHandle TimerHandle;
+	GetWorld()->GetTimerManager().SetTimer(TimerHandle, this, &UPlayerUserWidget::TransitionToRacingMap, 1.0f, false);
+
+	UE_LOG(LogTemp, Warning, TEXT("Any Key Pressed! Fading Out..."));
 	return FReply::Handled();
 }
 
@@ -67,5 +64,5 @@ void UPlayerUserWidget::TransitionToRacingMap()
 	}
 
 	// 지정된 레벨로 이동!
-	UGameplayStatics::OpenLevel(GetWorld(),FName(""));
+	UGameplayStatics::OpenLevel(GetWorld(),FName("BetaMap"));
 }
