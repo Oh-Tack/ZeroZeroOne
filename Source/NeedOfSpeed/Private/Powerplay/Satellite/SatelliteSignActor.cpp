@@ -2,6 +2,7 @@
 
 
 #include "Powerplay/Satellite/SatelliteSignActor.h"
+#include "NiagaraFunctionLibrary.h"
 
 // Sets default values
 ASatelliteSignActor::ASatelliteSignActor()
@@ -21,7 +22,8 @@ ASatelliteSignActor::ASatelliteSignActor()
 void ASatelliteSignActor::BeginPlay()
 {
 	Super::BeginPlay();
-	
+
+	SignMesh->OnComponentHit.AddDynamic(this, &ASatelliteSignActor::OnHit);
 }
 
 // Called every frame
@@ -31,10 +33,24 @@ void ASatelliteSignActor::Tick(float DeltaTime)
 
 }
 
+void ASatelliteSignActor::OnHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp,
+	FVector NormalImpulse, const FHitResult& Hit)
+{
+	if (!bHasRolled || !IsValid(SparkFX)) return;
+
+	UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+		GetWorld(), SparkFX,
+		Hit.ImpactPoint,
+		Hit.ImpactNormal.Rotation()
+	);
+}
+
 void ASatelliteSignActor::TriggerRoll()
 {
 	if (bHasRolled) return;
 	bHasRolled = true;
+
+	UE_LOG(LogTemp, Warning, TEXT("[SignActor] TriggerRoll 호출됨"));
 
 	SignMesh->SetLinearDamping(0.5f);
 	SignMesh->SetAngularDamping(AngularDamping);
@@ -45,7 +61,7 @@ void ASatelliteSignActor::TriggerRoll()
 	GetWorld()->GetTimerManager().SetTimerForNextTick([this]()
 	{
 		const FVector Dir = FVector(RollDirection.X, RollDirection.Y, 0.f).GetSafeNormal();
+		UE_LOG(LogTemp, Warning, TEXT("[SignActor] 속도 적용: Dir=%s, Speed=%f"), *Dir.ToString(), ImpulseStrength);
 		SignMesh->SetPhysicsLinearVelocity(Dir * ImpulseStrength);
-		SignMesh->SetPhysicsAngularVelocityInDegrees(AngularVelocity);
 	});
 }
