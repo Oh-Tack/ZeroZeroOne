@@ -8,6 +8,7 @@
 #include "NiagaraComponent.h"
 #include "Components/AudioComponent.h"
 #include "GameFramework/SpringArmComponent.h"
+#include "LevelSequenceActor.h"
 #include "RacingCar.generated.h"
 
 
@@ -26,7 +27,7 @@ public:
 protected:
 	
 	virtual void BeginPlay() override;
-
+	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
 	class UInputAction* IA_Throttle;
 
@@ -52,7 +53,7 @@ protected:
 	float DriftGaugeRate = 0.5f;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PowerPlay")
-	float DriftExitBoostForce = 350.0f;
+	float DriftExitBoostForce = 500.0f;
 	
 	UPROPERTY(EditAnywhere, Category = "PowerPlay")
 	float BoostConsumptionRate = 1.0f; // 초당 1.0씩 소모 (3.0 만점이면 3초 유지)
@@ -74,6 +75,10 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Racing")
 	int32 TotalLaps = 3; // 총 바퀴 수
+	
+	UFUNCTION()
+	void OnVehicleHit(UPrimitiveComponent* HitComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);
+	
 	
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "MyCar")
@@ -109,12 +114,29 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crash")
 	class USoundBase* DestroySound;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crash | Cinematic")
+	class ULevelSequence* CrashCutscene;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crash")
+	float CrashThreshold = 5000.0f; // 이 속도 이상으로 부딪히면 파괴됨
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crash")
 	float LaunchMultiplier = 1.0f;
 
 	bool bIsRespawning = false;
 	bool bDestroyCar = false;
-	FTimerHandle RespawnTimer;
+
+	UPROPERTY()
+	class ULevelSequencePlayer* SequencePlayer;
+
+	// 🛠️ [Crash Functions]
+	void HandleVehicleDestruction(const FVector& NormalImpulse, float ImpactSpeed);
+    
+	UFUNCTION()
+	void OnCrashCutsceneFinished();
+
+	void RespawnVehicle();
+	void IgnoreVehicleCollision(bool bIgnore);
 	
 
 	// 카메라 전환 함수
@@ -175,6 +197,23 @@ protected:
 	
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Effects")
 	class UAudioComponent* EngineAudio;
+	
+	UPROPERTY(EditAnywhere, Category = "Crash | Media")
+	class UMediaPlayer* MyMediaPlayer; // 미디어 플레이어 에셋
+
+	UPROPERTY(EditAnywhere, Category = "Crash | Media")
+	class UFileMediaSource* MyVideoSource; // 아까 만든 파일 미디어 소스
+
+	UPROPERTY(EditAnywhere, Category = "Crash | Media")
+	TSubclassOf<class UUserWidget> VideoWidgetClass; // 1단계에서 만든 위젯 클래스
+
+	UPROPERTY()
+	class UUserWidget* VideoWidgetInstance;
+	
+	// 파괴된 지점을 저장할 변수
+	FVector LastDeathLocation;
+	FRotator LastDeathRotation;
+	
     
 	// 입력 처리 함수 
 	void Throttle(const struct FInputActionValue& Value);
@@ -185,9 +224,8 @@ protected:
 	// void DriftingPhysics(bool bIsDrfting);
 	// 드리프트 탈출 부스터 함수
 	void ApplyExitBoost();
-	
-	// 충돌 및 리스폰 함수들
 
+	
 private:
 	const FName SkidIntensityParam = FName(TEXT("SkidIntensity"));
 
@@ -198,15 +236,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Racing")
 	void PassFinishLine();
     
+
 	// 중복방지
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Racing")
 	bool bCanLap = true;
-	
-	
-
-	// 트랙의 스플라인을 저장할 포인터
-	UPROPERTY()
-	class USplineComponent* TrackSpline;
 
 	// 타이머 핸들 (매 프레임 계산하면 무거우니 0.2초마다 계산)
 	FTimerHandle RankTimerHandle;
