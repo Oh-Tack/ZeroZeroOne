@@ -42,6 +42,11 @@ protected:
 	// 애니메이션이 끝난 후 호출할 함수
 	UFUNCTION()
 	void TransitionToRacingMap();
+	
+	// 로딩 화면이 나타나는 애니메이션
+	UPROPERTY(Transient, meta = (BindWidgetAnim))
+	class UWidgetAnimation* Loading_In;
+
 
 private:
 	bool bIsTransitioning = false; // 중복 입력 방지용
