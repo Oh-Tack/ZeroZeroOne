@@ -60,7 +60,7 @@ private:
 
 	// 이 각도에 도달하면 땅에 닿은 것으로 판단 → fracture 발동
 	UPROPERTY(EditAnywhere, Category = "Tower|Physics", meta = (ClampMin = "0.0", ClampMax = "90.0"))
-	float FractureTriggerAngle = 85.f;
+	float FractureTriggerAngle = 80.f;
 
 	// fracture 때 파편을 날리는 radial impulse 강도
 	UPROPERTY(EditAnywhere, Category = "Tower|Physics", meta = (ClampMin = "0.0"))

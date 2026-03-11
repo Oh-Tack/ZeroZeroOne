@@ -26,6 +26,18 @@ void ATaxiPowerplayZone::BeginPlay()
 	
 	ZoneBox->OnComponentBeginOverlap.AddDynamic(this, &ATaxiPowerplayZone::OnOverlapBegin);
 	ZoneBox->OnComponentEndOverlap.AddDynamic(this, &ATaxiPowerplayZone::OnOverlapEnd);
+	
+	// 바인딩은 최초 1회만
+	APlayerController* pc = GetWorld()->GetFirstPlayerController();
+	if (pc)
+	{
+		EnableInput(pc);
+		if (InputComponent)
+		{
+			InputComponent->BindKey(EKeys::E, IE_Pressed, this, &ATaxiPowerplayZone::OnEPressed);
+		}
+		DisableInput(pc);
+	}
 }
 
 // Called every frame
@@ -42,17 +54,17 @@ void ATaxiPowerplayZone::OnOverlapBegin(UPrimitiveComponent* OverlappedComp, AAc
 	if (!OtherActor->IsA<ARacingCar>()) return;
 	
 	bPlayerInZone = true;
-	
-	APlayerController* pc = GetWorld()->GetFirstPlayerController();
-	if (pc)
-	{
-		EnableInput(pc);
-		if (InputComponent)
-		{
-			FInputKeyBinding& Binding = InputComponent->BindKey(EKeys::E, IE_Pressed, this, &ATaxiPowerplayZone::OnEPressed);
-			Binding.bConsumeInput = false;
-		}
-	}
+	EnableInput(GetWorld()->GetFirstPlayerController());
+	// APlayerController* pc = GetWorld()->GetFirstPlayerController();
+	// if (pc)
+	// {
+	// 	EnableInput(pc);
+	// 	if (InputComponent)
+	// 	{
+	// 		FInputKeyBinding& Binding = InputComponent->BindKey(EKeys::E, IE_Pressed, this, &ATaxiPowerplayZone::OnEPressed);
+	// 		Binding.bConsumeInput = false;
+	// 	}
+	// }
 }
 
 void ATaxiPowerplayZone::OnOverlapEnd(UPrimitiveComponent* OverlappedComp, AActor* OtherActor,
@@ -61,6 +73,7 @@ void ATaxiPowerplayZone::OnOverlapEnd(UPrimitiveComponent* OverlappedComp, AActo
 	if (!OtherActor->IsA<ARacingCar>()) return;
 	
 	bPlayerInZone = false;
+	CurrentTaxiIndex = 0;
 	DisableInput(GetWorld()->GetFirstPlayerController());
 }
 
