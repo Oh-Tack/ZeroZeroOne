@@ -52,6 +52,17 @@ ARacingCar::ARacingCar()
     
 	// 엔진은 시동이 걸려있어야 하니 true로 설정
 	EngineAudio->SetAutoActivate(true);
+	
+	RearSpringArm = CreateDefaultSubobject<USpringArmComponent>(TEXT("RearSpringArm"));
+	RearSpringArm->SetupAttachment(GetMesh());
+	RearSpringArm->TargetArmLength = 600.0f; // 적절한 거리
+	RearSpringArm->SetRelativeRotation(FRotator(-15.f, 180.f, 0.f)); // 뒤를 보도록 180도 회전
+	RearSpringArm->bDoCollisionTest = true;
+
+	// 후방 카메라 추가
+	RearCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("RearCamera"));
+	RearCamera->SetupAttachment(RearSpringArm);
+	RearCamera->SetAutoActivate(false); // 처음엔 꺼둠
 }
 
 void ARacingCar::BeginPlay()
@@ -60,6 +71,19 @@ void ARacingCar::BeginPlay()
 	
 	TArray<UPointLightComponent*> AllPointLights;
 	GetComponents<UPointLightComponent>(AllPointLights);
+	
+	TArray<UCameraComponent*> CameraComps;
+	GetComponents<UCameraComponent>(CameraComps);
+
+	for (UCameraComponent* Cam : CameraComps)
+	{
+		// 우리가 C++에서 새로 만든 RearCamera가 아닌 것을 전방 카메라로 간주합니다.
+		if (Cam != RearCamera)
+		{
+			FrontCamera = Cam;
+			break;
+		}
+	}
 
 	// Tag달아놓은 애들만 배열에 저장.
 	for (UPointLightComponent* Light : AllPointLights)
@@ -116,6 +140,13 @@ void ARacingCar::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent
 		{
 			EnhancedInputComponent->BindAction(IA_Drift, ETriggerEvent::Started, this, &ARacingCar::StartDrift);
 			EnhancedInputComponent->BindAction(IA_Drift, ETriggerEvent::Completed, this, &ARacingCar::StopDrift);
+		}
+		
+		// 뒤보는 카메라
+		if (IA_LookBack)
+		{
+			EnhancedInputComponent->BindAction(IA_LookBack, ETriggerEvent::Started, this, &ARacingCar::StartLookBack);
+			EnhancedInputComponent->BindAction(IA_LookBack, ETriggerEvent::Completed, this, &ARacingCar::StopLookBack);
 		}
 	}
 }
@@ -493,6 +524,26 @@ void ARacingCar::NotifyHit(class UPrimitiveComponent* MyComp, AActor* Other, cla
 		}
 	}
 }
+
+
+void ARacingCar::StartLookBack()
+{
+	if (FrontCamera && RearCamera)
+	{
+		FrontCamera->SetActive(false);
+		RearCamera->SetActive(true);
+	}
+}
+
+void ARacingCar::StopLookBack()
+{
+	if (FrontCamera && RearCamera)
+	{
+		RearCamera->SetActive(false);
+		FrontCamera->SetActive(true);
+	}
+}
+
 
 // 결승선 통과
 void ARacingCar::PassFinishLine()

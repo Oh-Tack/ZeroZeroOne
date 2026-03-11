@@ -4,46 +4,78 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "Components/SplineComponent.h"
 #include "NiagaraSystem.h"
+#include "Camera/CameraShakeBase.h"
 #include "PlaneCrashActor.generated.h"
 
 class UParticleSystem;
+class USoundBase;
 
 UENUM(BlueprintType)
 enum class EPlaneCrashPhase : uint8
 {
 	Idle,
-	Approaching,  // 하늘에서 충돌 지점으로 강하 중
-	Impacted,     // 착지 충돌 후
+	Approaching,  // 스플라인 경로 따라 강하 중
+	Sliding,      // 착지 후 슬라이딩
+	Impacted,     // 완전 정지
 };
+
 UCLASS()
 class NEEDOFSPEED_API APlaneCrashActor : public AActor
 {
 	GENERATED_BODY()
-	
-public:	
-	// Sets default values for this actor's properties
+
+public:
 	APlaneCrashActor();
 
 protected:
-	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
-public:	
-	// Called every frame
+public:
 	virtual void Tick(float DeltaTime) override;
 
 public:
-	// 충돌 이펙트
+	// 비행 경로 스플라인 (에디터에서 포인트 배치)
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Crash")
+	TObjectPtr<USplineComponent> FlightSpline;
+
+	// 비행기 액터
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crash")
+	TObjectPtr<AActor> PlaneActor;
+
+	// 강하 시간 (초)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crash|Approach")
+	float ApproachDuration = 8.f;
+	
+	// 메시 forward 축 보정
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crash")
+	FRotator MeshRotationOffset = FRotator(0.f, -90.f, 0.f);
+	
+	// 강하 중 추가 기울기 (에디터에서 직접 조정)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crash|Approach")
+	FRotator ApproachTiltOffset = FRotator(0.f, 0.f, 0.f);
+	
+	// 착지 후 슬라이딩 속도 (cm/s)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crash|Sliding")
+	float SlidingSpeed = 2000.f;
+
+	// 착지 후 슬라이딩 시간 (초)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crash|Sliding")
+	float SlidingDuration = 3.f;
+
+	// 이펙트
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crash|Effects")
 	TObjectPtr<UParticleSystem> ImpactParticle;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crash|Effects")
 	TObjectPtr<UNiagaraSystem> ImpactNiagara;
 
-	// 강하 중 연기 트레일
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crash|Effects")
 	TObjectPtr<UNiagaraSystem> TrailNiagara;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crash|Effects")
+	TObjectPtr<UNiagaraSystem> SlidingSparkNiagara;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crash|Effects")
 	FVector ImpactParticleOffset = FVector::ZeroVector;
@@ -51,27 +83,20 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crash|Effects")
 	FVector ImpactParticleScale = FVector(5.f, 5.f, 5.f);
 
-	// 강하 설정 - 충돌 지점(ImpactWorldLocation) 기준 상대 오프셋
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crash|Approach")
-	FVector ApproachStartOffset = FVector(-3000.f, 0.f, 2000.f);
+	// 사운드
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crash|Sound")
+	TObjectPtr<USoundBase> ApproachSound;
 
-	// 강하에 걸리는 시간(초)
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crash|Approach")
-	float ApproachDuration = 2.5f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crash|Sound")
+	TObjectPtr<USoundBase> ImpactSound;
 
-	// 레벨에서 설정할 충돌 착지 지점 (월드 좌표)
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crash|Approach")
-	FVector ImpactWorldLocation = FVector::ZeroVector;
-	
-	// 레벨에 배치된 비행기 BP 액터를 직접 연결
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crash")
-	TObjectPtr<AActor> PlaneActor;
+	// 카메라 쉐이크
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crash|Effects")
+	TSubclassOf<UCameraShakeBase> ImpactCameraShake;
 
-	// 강하 시작 시 호출 - BP에서 트레일 이펙트 등 처리
 	UFUNCTION(BlueprintImplementableEvent, Category = "Crash")
 	void OnApproachStart();
 
-	// 착지 충돌 시 호출 - BP에서 스켈레탈 메시 물리/애니메이션 처리
 	UFUNCTION(BlueprintImplementableEvent, Category = "Crash")
 	void OnImpact();
 
@@ -81,8 +106,11 @@ public:
 private:
 	EPlaneCrashPhase CurrentPhase = EPlaneCrashPhase::Idle;
 	float ApproachElapsed = 0.f;
-	FVector ApproachStartLocation;
-	FVector ApproachTargetLocation;
+	float SlidingElapsed = 0.f;
+	FVector SlideDirection;
+	FRotator LandingRotation;
+	FVector LandingLocation;
 
 	void ExecuteImpact();
+	void ExecuteSliding(float DeltaTime);
 };
