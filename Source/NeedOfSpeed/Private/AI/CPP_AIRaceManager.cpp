@@ -25,11 +25,34 @@ void ACPP_AIRaceManager::BeginPlay()
 	TArray<AActor*> FoundVehicles;
 	UGameplayStatics::GetAllActorsWithInterface(GetWorld(), UUIn_isVehicle::StaticClass(), FoundVehicles);
 
+	// 빨주노초파남보 이름 배열
+	TArray<FString> ColorNames = {TEXT("빨강"), TEXT("주황"), TEXT("노랑"), TEXT("초록"), TEXT("파랑"), TEXT("남색"), TEXT("보라")};
+
+	int32 Index = 0;
 	for (AActor* V : FoundVehicles)
 	{
 		FRacerInfo Info;
 		Info.Vehicle = V;
+
+		// 플레이어인지 확인
+		APawn* Pawn = Cast<APawn>(V);
+		if (Pawn && Pawn->IsPlayerControlled())
+		{
+			Info.VehicleName = TEXT("플레이어");  // UI용 이름
+		}
+		else
+		{
+			// 빨주노초파남보 색상 이름 지정
+			Info.VehicleName = ColorNames[Index % ColorNames.Num()];
+		}
+
+		// 테이블에 추가
 		RacerTable.Add(Info);
+
+		// 맵에도 저장 (기존 로직 유지)
+		VehicleNames.Add(V, Info.VehicleName);
+
+		Index++;
 	}
 
 	// 주기적 업데이트 시작
@@ -41,7 +64,6 @@ void ACPP_AIRaceManager::UpdateRaceData()
 	if (!TargetRoad || !TargetRoad->Spline) return;
 
 	const float TrackLength = TargetRoad->Spline->GetSplineLength();
-	const int32 FinishLap = 2;
 
 	// ======================
 	// 1️⃣ 거리 + 랩 계산
@@ -104,10 +126,11 @@ void ACPP_AIRaceManager::UpdateRaceData()
 			Record.Vehicle = Info.Vehicle;
 			Record.FinishRank = FinishedRacers.Num() + 1;
 			Record.FinishTime = CurrentTime;
+			
+			Record.VehicleName = Info.VehicleName;  
 
 			FinishedRacers.Add(Record);
-
-			// ⭐ 모든 차량 완주 이벤트
+			
 			OnRacerFinished.Broadcast(Record);
 
 			APawn* Pawn = Cast<APawn>(Info.Vehicle);
@@ -116,11 +139,26 @@ void ACPP_AIRaceManager::UpdateRaceData()
 				OnPlayerFinished.Broadcast(Info.Vehicle);
 			}
 
+			// 🔹 플레이어인지 체크해서 이름 결정
+			FString VehicleLabel;
+			if (Pawn && Pawn->IsPlayerControlled())
+			{
+				VehicleLabel = TEXT("플레이어");
+			}
+			else if (VehicleNames.Contains(Info.Vehicle))
+			{
+				VehicleLabel = VehicleNames[Info.Vehicle];
+			}
+			else
+			{
+				VehicleLabel = TEXT("알수없음");
+			}
+
 			UE_LOG(LogTemp, Warning,
-				TEXT("FINISH: %s Rank %d Time %.2f"),
-				*Info.Vehicle->GetActorLabel(),
-				Record.FinishRank,
-				Record.FinishTime);
+				   TEXT("FINISH: %s Rank %d Time %.2f"),
+				   *Info.VehicleName,
+				   Record.FinishRank,
+				   Record.FinishTime);
 		}
 	}
 
@@ -198,6 +236,22 @@ void ACPP_AIRaceManager::PrintCurrentRankings()
 	UE_LOG(LogTemp, Warning, TEXT("=== CURRENT RANKINGS ==="));
 	for (const auto& Info : RacerTable)
 	{
-		UE_LOG(LogTemp, Log, TEXT("%d위: %s | Lap: %d"), Info.Rank, *Info.Vehicle->GetActorLabel(), Info.Lap);
+		FString VehicleLabel;
+		APawn* Pawn = Cast<APawn>(Info.Vehicle);
+
+		if (Pawn && Pawn->IsPlayerControlled())
+		{
+			VehicleLabel = TEXT("플레이어");
+		}
+		else if (VehicleNames.Contains(Info.Vehicle))
+		{
+			VehicleLabel = VehicleNames[Info.Vehicle];
+		}
+		else
+		{
+			VehicleLabel = TEXT("알수없음");
+		}
+
+		UE_LOG(LogTemp, Log, TEXT("%d위: %s | Lap: %d"), Info.Rank, *Info.VehicleName, Info.Lap);
 	}
 }

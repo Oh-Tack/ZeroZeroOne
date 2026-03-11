@@ -148,8 +148,6 @@ void ACPP_AI_McLaren::BeginPlay()
 	// ⭐ 차량마다 다른 차선 배정
 	int32 LaneIndex = FMath::RandRange(-1, 1);
 	RespawnLaneOffset = LaneIndex * 350.f;
-	
-	
 }
 
 

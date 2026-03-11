@@ -17,6 +17,9 @@ struct FFinishRecord
 
 	UPROPERTY(BlueprintReadWrite)
 	float FinishTime = 0.f;
+	
+	UPROPERTY(BlueprintReadWrite)
+	FString VehicleName = TEXT("알수없음");
 };
 
 USTRUCT(BlueprintType)
@@ -41,6 +44,9 @@ struct FRacerInfo
 
 	UPROPERTY(BlueprintReadWrite)
 	float RaceProgress = 0.f;
+
+	UPROPERTY(BlueprintReadWrite)
+	FString VehicleName = TEXT("알수없음");
 };
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
@@ -49,7 +55,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
 	FOnRacerFinished,
-	const FFinishRecord&, Record);
+	FFinishRecord, Record);
 
 UCLASS()
 class NEEDOFSPEED_API ACPP_AIRaceManager : public AActor
@@ -91,6 +97,12 @@ public:
 	FOnRacerFinished OnRacerFinished;
 	
 	float LeadDistance = 0.f;
+	
+	UPROPERTY()
+	TMap<AActor*, FString> VehicleNames;
+	
+	UPROPERTY(BlueprintReadWrite, EditAnywhere)
+	int32 FinishLap = 2;
 
 private:
 	/** 주기적으로 순위를 갱신하는 핵심 로직 */
