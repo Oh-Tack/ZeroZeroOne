@@ -26,7 +26,10 @@ void APowerplayZoneBase::BeginPlay()
 		EnableInput(PC);
 		if (InputComponent)
 		{
-			InputComponent->BindKey(EKeys::E, IE_Pressed, this, &APowerplayZoneBase::OnEPressed);
+			InputComponent->BindKey(EKeys::LeftControl, IE_Pressed, this, &APowerplayZoneBase::OnEPressed);
+			InputComponent->BindKey(EKeys::RightControl, IE_Pressed, this, &APowerplayZoneBase::OnEPressed);
+			
+			// InputComponent->BindKey(EKeys::E, IE_Pressed, this, &APowerplayZoneBase::OnEPressed);
 		}
 		DisableInput(PC);
 	}
@@ -55,6 +58,7 @@ void APowerplayZoneBase::OnOverlapEnd(UPrimitiveComponent* OverlappedComp, AActo
 
 void APowerplayZoneBase::OnEPressed()
 {
+	UE_LOG(LogTemp, Warning, TEXT("[Powerplay] OnEPressed 호출됨"));
 	if (!bPlayerInZone || bTriggered) return;
 
 	bTriggered = true;

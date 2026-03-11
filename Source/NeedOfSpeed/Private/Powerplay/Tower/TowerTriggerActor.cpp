@@ -50,7 +50,8 @@ void ATowerTriggerActor::OnOverlapBegin(UPrimitiveComponent* OverlappedComp, AAc
 	}
 	
 	bTriggered = true;
-	const FVector FallDirection = -OtherActor->GetVelocity().GetSafeNormal();
+	// const FVector FallDirection = -OtherActor->GetVelocity().GetSafeNormal();
+	const FVector FallDirection = -TargetTower->GetActorForwardVector();
 	TargetTower->StartCollapse(FallDirection);
 
 	UE_LOG(LogTemp, Log, TEXT("[TowerTrigger] 차량 진입 감지 → %s 붕괴 시작"),

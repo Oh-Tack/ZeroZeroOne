@@ -43,16 +43,16 @@ protected:
 
 	// 자식 클래스에서 실제 이벤트 발동
 	virtual void OnPowerplayTriggered() {}
-
+	
+	void ShowIconWidget();
+	void HideIconWidget();
+	
 private:
 	UPROPERTY()
 	TObjectPtr<UUserWidget> IconWidgetInstance;
 
 	UPROPERTY()
 	TObjectPtr<UUserWidget> TextWidgetInstance;
-
-	void ShowIconWidget();
-	void HideIconWidget();
 	void ShowTextWidget();
 	void HideTextWidget();
 
