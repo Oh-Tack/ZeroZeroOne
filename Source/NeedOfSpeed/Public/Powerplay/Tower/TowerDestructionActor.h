@@ -31,6 +31,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tower|FX")
 	TObjectPtr<UNiagaraSystem> ExplosionFX;
 	
+	// 폭발 이펙트를 왼쪽으로 얼마나 오프셋할지 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tower|FX")
+	float ExplosionLeftOffset = 200.f;
+	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tower|FX")
 	TObjectPtr<UNiagaraSystem> CollapseImpactFX;
 	
