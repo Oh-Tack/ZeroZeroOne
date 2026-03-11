@@ -21,10 +21,10 @@
 ACPP_AI_McLaren::ACPP_AI_McLaren()
 {
 	PrimaryActorTick.bCanEverTick = true;
-	PrimaryActorTick.TickInterval = 0.1f;
+	PrimaryActorTick.TickInterval = 0.f; // ⭐ 매 프레임
 
 	Max_Speed = 200.f;
-	Min_Speed = 50.f;
+	Min_Speed = 60.f;
 	Angle = 30.f;
 
 	USkeletalMeshComponent* MeshComp = GetMesh();
@@ -133,21 +133,47 @@ void ACPP_AI_McLaren::BeginPlay()
 	if (GetMesh())
 	{
 		GetMesh()->SetNotifyRigidBodyCollision(true);
-		GetMesh()->BodyInstance.bUseCCD = true; // 고속 충돌 안정화
+		GetMesh()->BodyInstance.bUseCCD = true;
 		GetMesh()->OnComponentHit.AddDynamic(this, &ACPP_AI_McLaren::OnVehicleHit);
 
-		UE_LOG(LogTemp, Warning, TEXT("Hit Event Bound Successfully for %s"), *GetName());
+		BrakeMID = GetMesh()->CreateDynamicMaterialInstance(28);
+
+		if (BrakeMID)
+		{
+			CurrentBrakeIntensity = 0.f;
+			BrakeMID->SetScalarParameterValue(TEXT("Intensity"), 0.f);
+		}
 	}
 
 	// ⭐ 차량마다 다른 차선 배정
 	int32 LaneIndex = FMath::RandRange(-1, 1);
 	RespawnLaneOffset = LaneIndex * 350.f;
+	
+	
 }
 
 
 void ACPP_AI_McLaren::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+
+	if (!BrakeMID) return;
+
+	// 목표 밝기
+	float TargetIntensity =
+		FMath::Lerp(0.f, 10.f, CurrentBrakeAmount);
+
+	// 부드러운 변화
+	CurrentBrakeIntensity =
+		FMath::FInterpTo(
+			CurrentBrakeIntensity,
+			TargetIntensity,
+			DeltaTime,
+			12.f);
+
+	BrakeMID->SetScalarParameterValue(
+		TEXT("Intensity"),
+		CurrentBrakeIntensity);
 }
 
 
@@ -181,6 +207,8 @@ void ACPP_AI_McLaren::SetSteering_Implementation(float Steering)
 void ACPP_AI_McLaren::SetBrake_Implementation(float Brake)
 {
 	GetVehicleMovement()->SetBrakeInput(Brake);
+	
+	CurrentBrakeAmount = Brake;
 }
 
 
@@ -218,7 +246,7 @@ void ACPP_AI_McLaren::OnVehicleHit(
 	if (OtherActor->IsA(ALandscape::StaticClass())) return;
 
 	float ImpactScore = CalculateImpactScore(NormalImpulse, OtherComp);
-	if (ImpactScore < 50.f) return;
+	if (ImpactScore < 60.f) return;
 
 	bDestroyCar = true;
 

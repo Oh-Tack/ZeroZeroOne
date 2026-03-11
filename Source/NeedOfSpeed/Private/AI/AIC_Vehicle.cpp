@@ -111,7 +111,7 @@ float AAIC_Vehicle::CalculateSteering()
 	FRotator DeltaRot = UKismetMathLibrary::NormalizedDeltaRotator(LookRot, ControllerVehicle->GetActorRotation());
 
 	// 디버그용 (최종 타겟 구체)
-	DrawDebugSphere(GetWorld(), SteerTarget, 100.f, 12, FColor::Yellow, false, 0.1f);
+	// DrawDebugSphere(GetWorld(), SteerTarget, 100.f, 12, FColor::Yellow, false, 0.1f);
 
 	return UKismetMathLibrary::MapRangeClamped(DeltaRot.Yaw, -25.0f, 25.0f, -1.f, 1.f);
 }
@@ -259,7 +259,7 @@ void AAIC_Vehicle::CheckForOvertakes()
     APawn* FrontPawn = Cast<APawn>(VehicleInFrontActor);
     if (FrontPawn && FrontPawn->IsPlayerControlled()) BoxColor = FColor::Magenta;
 
-    DrawDebugBox(GetWorld(), FrontBox->GetComponentLocation(), FrontBox->GetScaledBoxExtent(), FrontBox->GetComponentQuat(), BoxColor, false, 0.1f, 0, 2.0f);
+    // DrawDebugBox(GetWorld(), FrontBox->GetComponentLocation(), FrontBox->GetScaledBoxExtent(), FrontBox->GetComponentQuat(), BoxColor, false, 0.1f, 0, 2.0f);
 }
 
 void AAIC_Vehicle::HandleLaneChange(bool bVehicleInFront, const TArray<AActor*>& LeftActors, const TArray<AActor*>& RightActors)
@@ -524,11 +524,11 @@ void AAIC_Vehicle::CheckForStaticObstacles(float DeltaTime, const TArray<AAIC_Ve
             HitCount++;
         }
 
-#if WITH_EDITOR
-        DrawDebugLine(GetWorld(), Start, End,
-            bHit ? FColor::Red : FColor::Green,
-            false, 0.05f, 0, 1.5f);
-#endif
+// #if WITH_EDITOR
+//         DrawDebugLine(GetWorld(), Start, End,
+//             bHit ? FColor::Red : FColor::Green,
+//             false, 0.05f, 0, 1.5f);
+// #endif
     }
 
     // =====================================================
@@ -590,16 +590,16 @@ void AAIC_Vehicle::CheckForStaticObstacles(float DeltaTime, const TArray<AAIC_Ve
     bEmergencyBrake =
         bRayHit && (MinHitDistance < SafeDistance);
 
-    if (bRayHit)
-    {
-        DrawDebugSphere(
-            GetWorld(),
-            Start + BlendedForward * MinHitDistance,
-            SphereRadius,
-            8,
-            FColor::Red,
-            false,
-            0.2f
-        );
-    }
+    // if (bRayHit)
+    // {
+    //     DrawDebugSphere(
+    //         GetWorld(),
+    //         Start + BlendedForward * MinHitDistance,
+    //         SphereRadius,
+    //         8,
+    //         FColor::Red,
+    //         false,
+    //         0.2f
+    //     );
+    // }
 }

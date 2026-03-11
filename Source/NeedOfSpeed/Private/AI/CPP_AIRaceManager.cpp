@@ -1,5 +1,4 @@
 #include "NeedOfSpeed/Public/AI/CPP_AIRaceManager.h"
-
 #include "NeedOfSpeed/Public/AI/UIn_isVehicle.h"
 #include "NeedOfSpeed/Public/AI/CPP_Road.h"
 #include "Kismet/GameplayStatics.h"

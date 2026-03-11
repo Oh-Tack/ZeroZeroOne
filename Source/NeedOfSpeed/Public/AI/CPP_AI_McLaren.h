@@ -86,6 +86,12 @@ public:
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TObjectPtr<class USoundBase> DestroySound;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TObjectPtr<class UMaterialInstanceDynamic> BrakeMID;
+	
+	float CurrentBrakeAmount = 0.f;
+	float CurrentBrakeIntensity = 0.f;
 
 	UPROPERTY(EditDefaultsOnly, Category="Effects")
 	float LaunchMultiplier = 5.f; // 충격으로 날아가는 힘 조절
