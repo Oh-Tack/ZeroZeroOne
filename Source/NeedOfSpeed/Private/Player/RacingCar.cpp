@@ -155,7 +155,6 @@ void ARacingCar::Throttle(const FInputActionValue& Value)
 {
 	float AxisValue = Value.Get<float>();
 	
-	if(GEngine) GEngine->AddOnScreenDebugMessage(2, 0.5f, FColor::Cyan, FString::Printf(TEXT("Throttle Input: %f"), AxisValue));
     
 	ChaosMovement->SetThrottleInput(AxisValue);
 	ChaosMovement->SetThrottleInput(Value.Get<float>());
@@ -223,7 +222,6 @@ void ARacingCar::StartDrift()
 {
 	bDriftKeyPressed = true;
 	bDriftKeyPressed = true;
-	if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 1.0f, FColor::Green, TEXT("Drift Key Pressed!"));
 	// 진입 시에만 살짝 뒤를 날려주기 위해 순간적인 토크주기.
 	float EntrySide = ChaosMovement->GetSteeringInput();
 	GetMesh()->AddTorqueInDegrees(FVector(0, 0, EntrySide * 50000000.0f), NAME_None, false); 
@@ -418,8 +416,7 @@ void ARacingCar::Tick(float DeltaTime)
 
             FVector BoostForce = Forward * BoostAccelerationForce;
             GetMesh()->AddForce(BoostForce * GetMesh()->GetMass());
-
-            if (GEngine) GEngine->AddOnScreenDebugMessage(3, 0.1f, FColor::Cyan, TEXT("AUTO BOOSTING!!!"));
+        	
         }
         else
         {
@@ -475,8 +472,7 @@ void ARacingCar::Tick(float DeltaTime)
                 float CounterSteerAmount = DriftDirection * 0.5f;
                 ChaosMovement->SetSteeringInput(FMath::Clamp(CurrentSteer + CounterSteerAmount, -1.0f, 1.0f));
             }
-            
-            if(GEngine) GEngine->AddOnScreenDebugMessage(1, 0.1f, FColor::Red, TEXT("DRIFTING!!!"));
+        	
         }
         else
         {
