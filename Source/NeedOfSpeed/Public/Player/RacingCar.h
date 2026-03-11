@@ -52,7 +52,7 @@ protected:
 	float DriftGaugeRate = 0.5f;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PowerPlay")
-	float DriftExitBoostForce = 500.0f;
+	float DriftExitBoostForce = 350.0f;
 	
 	UPROPERTY(EditAnywhere, Category = "PowerPlay")
 	float BoostConsumptionRate = 1.0f; // 초당 1.0씩 소모 (3.0 만점이면 3초 유지)

@@ -17,7 +17,7 @@ ATowerTriggerActor::ATowerTriggerActor()
 	TriggerBox->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 	TriggerBox->SetCollisionResponseToAllChannels(ECR_Overlap);
 	TriggerBox->SetGenerateOverlapEvents(true);
-	TriggerBox->SetHiddenInGame(false);
+	TriggerBox->SetHiddenInGame(true);
 }
 
 // Called when the game starts or when spawned

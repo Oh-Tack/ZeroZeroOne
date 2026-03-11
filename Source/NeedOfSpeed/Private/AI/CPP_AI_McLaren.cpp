@@ -246,7 +246,7 @@ void ACPP_AI_McLaren::OnVehicleHit(
 	if (OtherActor->IsA(ALandscape::StaticClass())) return;
 
 	float ImpactScore = CalculateImpactScore(NormalImpulse, OtherComp);
-	if (ImpactScore < 55.f) return;
+	if (ImpactScore < 58.f) return;
 
 	bDestroyCar = true;
 
