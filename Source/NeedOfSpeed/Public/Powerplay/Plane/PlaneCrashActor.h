@@ -50,6 +50,9 @@ public:
 	// 시작 시 기수 하향 각도 (앞부분 숙이기)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crash|Approach")
 	float NoseDownPitch = -8.f;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crash|Approach")
+	int32 ImpactSplinePointIndex = 4;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crash|Sliding")
 	float SlidingSpeed = 2000.f;
@@ -107,9 +110,12 @@ private:
 	FVector LandingLocation = FVector::ZeroVector;
 
 private:
+	void SpawnImpactEffects();
 	void ExecuteImpact();
 	void ExecuteSliding(float DeltaTime);
 
 	void AlignPlaneToSplineStart(bool bApplyNoseDown);
 	FRotator MakeApproachRotation(const FVector& Direction, float Alpha) const;
+	
+	bool bEffectsSpawned = false;
 };
