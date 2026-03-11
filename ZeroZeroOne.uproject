@@ -13,7 +13,8 @@
 				"StateTreeEditorModule",
 				"ChaosVehicles",
 				"AIModule",
-				"LearningAgents"
+				"LearningAgents",
+				"UMG"
 			]
 		}
 	],
