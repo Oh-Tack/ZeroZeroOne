@@ -285,8 +285,7 @@ void ARacingCar::ApplyExitBoost()
 	// 차체(Mesh)에 새로운 속도를 적용
 
 	GetMesh()->AddImpulse(BoostDirection * DriftExitBoostForce, NAME_None, true);
-
-	if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Yellow, TEXT("Boost Active!"));
+	
 }
 
 
@@ -515,8 +514,6 @@ void ARacingCar::NotifyHit(class UPrimitiveComponent* MyComp, AActor* Other, cla
             
 			PC->PlayerCameraManager->StartCameraShake(ImpactShakeClass, ShakeScale);
             
-			// 충돌 확인
-			if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Yellow, FString::Printf(TEXT("쾅! 충격 강도: %.1f"), ShakeScale));
 		}
 	}
 }
@@ -548,9 +545,8 @@ void ARacingCar::PassFinishLine()
 	{
 		CurrentLap++;
 		bCanLap = false;
-        
-		if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 3.0f, FColor::Green, FString::Printf(TEXT("LAP %d / %d"), CurrentLap, TotalLaps));
 	}
+		
 }
 
 

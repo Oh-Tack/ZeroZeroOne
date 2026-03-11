@@ -187,14 +187,7 @@ protected:
 	void ApplyExitBoost();
 	
 	// 충돌 및 리스폰 함수들
-	UFUNCTION()
-	void OnVehicleHit(UPrimitiveComponent* HitComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);
 
-	void RespawnVehicle();
-	float CalculateImpactScore(const FVector& NormalImpulse, UPrimitiveComponent* OtherComp);
-	void ApplyImpactSpin(const FVector& NormalImpulse, float ImpactScore);
-	void IgnoreVehicleCollision(bool bIgnore);
-	
 private:
 	const FName SkidIntensityParam = FName(TEXT("SkidIntensity"));
 
@@ -209,7 +202,7 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Racing")
 	bool bCanLap = true;
 	
-	void UpdateRaceRank();
+	
 
 	// 트랙의 스플라인을 저장할 포인터
 	UPROPERTY()

@@ -24,7 +24,8 @@ public class NeedOfSpeed : ModuleRules
 			"Slate",
 			"SlateCore",
 			"Landscape",
-			"LevelSequence"
+			"LevelSequence",
+			"MediaAssets",
 		});
 
 		PrivateDependencyModuleNames.AddRange(new string[] {  });
