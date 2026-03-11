@@ -69,6 +69,18 @@ void APlaneCrashActor::Tick(float DeltaTime)
 		PlaneActor->SetActorRotation(FinalRot);
 	}
 
+	// 지정 포인트 도달 시 이펙트만 스폰 (스플라인 이동 계속)
+	if (!bEffectsSpawned && ImpactSplinePointIndex >= 0)
+	{
+		const float ImpactDist = FlightSpline->GetDistanceAlongSplineAtSplinePoint(ImpactSplinePointIndex);
+		if (Distance >= ImpactDist)
+		{
+			SpawnImpactEffects();
+			bEffectsSpawned = true;
+		}
+	}
+
+	// 스플라인 끝 도달 시 슬라이딩 시작
 	if (Alpha >= 1.f)
 	{
 		ExecuteImpact();
@@ -88,6 +100,7 @@ void APlaneCrashActor::TriggerCrash()
 
 	CurrentPhase = EPlaneCrashPhase::Approaching;
 	ApproachElapsed = 0.f;
+	bEffectsSpawned = false;
 	SetActorTickEnabled(true);
 
 	if (TrailNiagara && IsValid(PlaneActor))
@@ -117,13 +130,79 @@ void APlaneCrashActor::TriggerCrash()
 	OnApproachStart();
 }
 
-void APlaneCrashActor::ExecuteImpact()
+void APlaneCrashActor::SpawnImpactEffects()
 {
 	if (!IsValid(PlaneActor))
-	{
-		return;
-	}
+    	{
+    		return;
+    	}
 
+	const FVector EffectLocation = PlaneActor->GetActorLocation();
+	
+	if (SlidingSparkNiagara)
+    	{
+    		UNiagaraFunctionLibrary::SpawnSystemAttached(
+    			SlidingSparkNiagara,
+    			PlaneActor->GetRootComponent(),
+    			NAME_None,
+    			FVector::ZeroVector,
+    			FRotator::ZeroRotator,
+    			EAttachLocation::KeepRelativeOffset,
+    			true);
+    	}
+    
+    	if (ImpactParticle)
+    	{
+    		UGameplayStatics::SpawnEmitterAtLocation(
+    			GetWorld(),
+    			ImpactParticle,
+    			LandingLocation + ImpactParticleOffset,
+    			FRotator::ZeroRotator,
+    			ImpactParticleScale);
+    	}
+    
+    	if (ImpactNiagara)
+    	{
+    		UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+    			GetWorld(),
+    			ImpactNiagara,
+    			LandingLocation + ImpactParticleOffset,
+    			FRotator::ZeroRotator,
+    			ImpactParticleScale);
+    	}
+    
+    	if (ImpactSound)
+    	{
+    		UGameplayStatics::PlaySoundAtLocation(
+    			GetWorld(),
+    			ImpactSound,
+    			LandingLocation);
+    	}
+    
+    	if (ImpactCameraShake)
+    	{
+    		UGameplayStatics::PlayWorldCameraShake(
+    			GetWorld(),
+    			ImpactCameraShake,
+    			LandingLocation,
+    			0.f,
+    			5000.f);
+    	}
+    
+    	OnImpact();
+}
+
+void APlaneCrashActor::ExecuteImpact()
+{
+	if (!IsValid(PlaneActor)) return;
+
+	// 이펙트가 아직 안 터졌으면 여기서도 스폰
+	if (!bEffectsSpawned)
+	{
+		SpawnImpactEffects();
+		bEffectsSpawned = true;
+	}
+	
 	LandingLocation = PlaneActor->GetActorLocation();
 	LandingRotation = PlaneActor->GetActorRotation();
 
@@ -138,60 +217,8 @@ void APlaneCrashActor::ExecuteImpact()
 
 	SlideDirection = FVector(EndDir.X, EndDir.Y, 0.f).GetSafeNormal();
 
-	PlaneActor->SetActorEnableCollision(false);
-
-	if (SlidingSparkNiagara)
-	{
-		UNiagaraFunctionLibrary::SpawnSystemAttached(
-			SlidingSparkNiagara,
-			PlaneActor->GetRootComponent(),
-			NAME_None,
-			FVector::ZeroVector,
-			FRotator::ZeroRotator,
-			EAttachLocation::KeepRelativeOffset,
-			true);
-	}
-
-	if (ImpactParticle)
-	{
-		UGameplayStatics::SpawnEmitterAtLocation(
-			GetWorld(),
-			ImpactParticle,
-			LandingLocation + ImpactParticleOffset,
-			FRotator::ZeroRotator,
-			ImpactParticleScale);
-	}
-
-	if (ImpactNiagara)
-	{
-		UNiagaraFunctionLibrary::SpawnSystemAtLocation(
-			GetWorld(),
-			ImpactNiagara,
-			LandingLocation + ImpactParticleOffset,
-			FRotator::ZeroRotator,
-			ImpactParticleScale);
-	}
-
-	if (ImpactSound)
-	{
-		UGameplayStatics::PlaySoundAtLocation(
-			GetWorld(),
-			ImpactSound,
-			LandingLocation);
-	}
-
-	if (ImpactCameraShake)
-	{
-		UGameplayStatics::PlayWorldCameraShake(
-			GetWorld(),
-			ImpactCameraShake,
-			LandingLocation,
-			0.f,
-			5000.f);
-	}
-
-	OnImpact();
-
+	PlaneActor->SetActorEnableCollision(true);
+	
 	CurrentPhase = EPlaneCrashPhase::Sliding;
 	SlidingElapsed = 0.f;
 
