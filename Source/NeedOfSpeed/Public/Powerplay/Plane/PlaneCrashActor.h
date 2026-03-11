@@ -9,6 +9,8 @@
 
 class UParticleSystem;
 class USoundBase;
+class UNiagaraComponent;
+class UParticleSystemComponent;
 
 UENUM(BlueprintType)
 enum class EPlaneCrashPhase : uint8
@@ -71,7 +73,17 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crash|Effects")
 	TObjectPtr<UNiagaraSystem> SlidingSparkNiagara;
+	
+	UPROPERTY()
+	TObjectPtr<UNiagaraComponent> ActiveImpactNiagaraComp = nullptr;
 
+	UPROPERTY()
+	TObjectPtr<UParticleSystemComponent> ActiveImpactParticleComp = nullptr;
+
+	// 스파크 위치 (PlaneActor 로컬 기준, 뒤쪽이면 X 음수)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crash|Effects")
+	FVector SlidingSparkOffset = FVector(-300.f, 0.f, -50.f);
+	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crash|Effects")
 	FVector ImpactParticleOffset = FVector::ZeroVector;
 
