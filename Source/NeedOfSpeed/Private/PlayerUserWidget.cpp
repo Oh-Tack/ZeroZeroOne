@@ -68,5 +68,5 @@ void UPlayerUserWidget::TransitionToRacingMap()
 	}
 
 	// 지정된 레벨로 이동!
-	UGameplayStatics::OpenLevel(GetWorld(),FName("BetaMap"));
+	UGameplayStatics::OpenLevel(GetWorld(),FName("Lv_BetaMap"));
 }
